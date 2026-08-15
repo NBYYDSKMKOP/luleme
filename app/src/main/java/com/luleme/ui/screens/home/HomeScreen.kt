@@ -56,7 +56,7 @@ import com.luleme.ui.components.CuteCard
 import com.luleme.ui.theme.CuteOrange
 import com.luleme.ui.theme.CutePink
 import com.luleme.ui.theme.CuteYellow
-import com.luleme.ui.theme.SecondaryLight
+import com.luleme.ui.theme.SecondaryDark
 import java.time.LocalDate
 import java.time.LocalTime
 import java.time.format.DateTimeFormatter
@@ -111,22 +111,17 @@ fun HomeContent(
 ) {
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(bottom = 100.dp), // Space for FAB
+        contentPadding = PaddingValues(bottom = 100.dp),
         verticalArrangement = Arrangement.spacedBy(20.dp)
     ) {
-        // 1. Header with Greeting
-        item {
-            HeaderSection()
-        }
+        item { HeaderSection() }
 
-        // 2. Main Status Card
         item {
             Box(modifier = Modifier.padding(horizontal = 20.dp)) {
                 TodayStatusCard(todayCount = state.todayRecords.size)
             }
         }
 
-        // 3. Stats Section
         item {
             Box(modifier = Modifier.padding(horizontal = 20.dp)) {
                 Column {
@@ -151,10 +146,9 @@ fun HomeContent(
                             )
                         }
                         Box(modifier = Modifier.weight(1f)) {
-                            // Placeholder for future stat, using age for now or just generic info
                             StatsCard(
                                 title = "状态",
-                                value = if (state.todayRecords.isNotEmpty()) "贤者模式" else "活跃",
+                                value = if (state.todayRecords.isNotEmpty()) "傻猪模式" else "活跃",
                                 unit = "",
                                 icon = Icons.Rounded.Favorite,
                                 iconTint = CutePink
@@ -165,7 +159,6 @@ fun HomeContent(
             }
         }
 
-        // 4. Health Tip
         item {
             Box(modifier = Modifier.padding(horizontal = 20.dp)) {
                 HealthTipCard(
@@ -177,7 +170,6 @@ fun HomeContent(
         }
     }
 
-    // Floating Action Button
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -212,7 +204,7 @@ fun TakeoffButton(
             isTakingOff = true
             animatingHasRecordedToday = hasRecordedToday
             onTakeoff()
-            
+
             scope.launch {
                 takeoffProgress.snapTo(0f)
                 takeoffProgress.animateTo(
@@ -341,7 +333,7 @@ private fun TakeoffIcon(
 fun HeaderSection() {
     val date = LocalDate.now().format(DateTimeFormatter.ofPattern("M月d日 EEEE", Locale.CHINA))
     val greeting = getGreetingMessage()
-    
+
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -375,11 +367,11 @@ fun HeaderSection() {
 fun getGreetingMessage(): String {
     val hour = LocalTime.now().hour
     return when (hour) {
-        in 0..4 -> "凌晨好！机长"
-        in 5..10 -> "早上好！机长"
-        in 11..12 -> "中午好！机长"
-        in 13..17 -> "下午好！机长"
-        else -> "晚上好！机长"
+        in 0..4 -> "凌晨好！粉丝猪"
+        in 5..10 -> "早上好！粉丝猪"
+        in 11..12 -> "中午好！粉丝猪"
+        in 13..17 -> "下午好！粉丝猪"
+        else -> "晚上好！粉丝猪"
     }
 }
 
@@ -415,12 +407,12 @@ fun TodayStatusCard(todayCount: Int) {
                     tint = if (hasRecordedToday) Color.White else MaterialTheme.colorScheme.primary
                 )
             }
-            
+
             Spacer(modifier = Modifier.size(20.dp))
-            
+
             Column {
                 Text(
-                    text = if (hasRecordedToday) "今日已起飞 $todayCount 次 ✨" else "今日还没起飞",
+                    text = if (hasRecordedToday) "今日已帮粉丝猪撸管 $todayCount" else "今日还没起飞",
                     style = MaterialTheme.typography.titleLarge.copy(
                         fontWeight = FontWeight.Bold,
                         color = if (hasRecordedToday) Color.White else MaterialTheme.colorScheme.onSurface
@@ -428,10 +420,10 @@ fun TodayStatusCard(todayCount: Int) {
                 )
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
-                    text = if (hasRecordedToday) "保持好心情~" else "别忘了爱自己哦",
+                    text = if (hasRecordedToday) "保持良好的猪猪" else "别忘了爱自己哦",
                     style = MaterialTheme.typography.bodyMedium.copy(
-                        color = if (hasRecordedToday) Color.White.copy(alpha = 0.9f) 
-                               else MaterialTheme.colorScheme.onSurfaceVariant
+                        color = if (hasRecordedToday) Color.White.copy(alpha = 0.9f)
+                        else MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 )
             }
@@ -489,35 +481,35 @@ fun StatsCard(
 fun HealthTipCard(frequency: Int, age: Int, todayCount: Int) {
     val recommended = getRecommendedWeeklyFrequency(age)
     val maxRecommended = recommended.last
-    
+
     val message = when {
-        todayCount >= 2 -> "今天起飞有点多次啦，注意身体哦机长 ✈️"
+        todayCount >= 2 -> "今天起飞有点多次啦，注意身体哦粉丝猪 ✈️"
         todayCount == 1 -> "今天已经起飞啦，心情不错吧~ ✨"
         frequency > maxRecommended -> "最近有点频繁呢，注意劳逸结合哦 💙"
         else -> "节奏很健康！继续保持~ ✨"
     }
-    
+
     val isHighFreq = todayCount >= 2 || frequency > maxRecommended
-    
+
     CuteCard(
-        backgroundColor = if (isHighFreq) MaterialTheme.colorScheme.tertiaryContainer 
-                         else MaterialTheme.colorScheme.secondaryContainer
+        backgroundColor = if (isHighFreq) MaterialTheme.colorScheme.tertiaryContainer
+        else MaterialTheme.colorScheme.secondaryContainer
     ) {
         Column {
             Text(
                 text = "💡 健康小贴士",
                 style = MaterialTheme.typography.titleSmall.copy(
                     fontWeight = FontWeight.Bold,
-                    color = if (isHighFreq) MaterialTheme.colorScheme.onTertiaryContainer 
-                            else MaterialTheme.colorScheme.onSecondaryContainer
+                    color = if (isHighFreq) MaterialTheme.colorScheme.onTertiaryContainer
+                    else MaterialTheme.colorScheme.onSecondaryContainer
                 )
             )
             Spacer(modifier = Modifier.height(8.dp))
             Text(
                 text = message,
                 style = MaterialTheme.typography.bodyMedium,
-                color = if (isHighFreq) MaterialTheme.colorScheme.onTertiaryContainer 
-                        else MaterialTheme.colorScheme.onSecondaryContainer
+                color = if (isHighFreq) MaterialTheme.colorScheme.onTertiaryContainer
+                else MaterialTheme.colorScheme.onSecondaryContainer
             )
         }
     }
