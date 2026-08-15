@@ -41,6 +41,87 @@ fun NavGraph(startDestination: String = Screen.Home.route) {
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentDestination = navBackStackEntry?.destination
 
+    val showBottomBar = currentDestination?.route != Screen.Lock.route
+
+    Scaffold(
+        containerColor = MaterialTheme.colorScheme.background,
+        bottomBar = {
+            if (showBottomBar) {
+                NavigationBar(
+                    modifier = Modifier.fillMaxWidth(),
+                    containerColor = MaterialTheme.colorScheme.background,
+                    tonalElevation = 0.dp
+                ) {
+                    items.forEach { screen ->
+                        NavigationBarItem(
+                            icon = {
+                                when (screen) {
+                                    Screen.Home -> Icon(Icons.Default.Home, contentDescription = null)
+                                    Screen.Statistics -> Icon(Icons.AutoMirrored.Filled.List, contentDescription = null)
+                                    Screen.Settings -> Icon(Icons.Default.Settings, contentDescription = null)
+                                    else -> {}
+                                }
+                            },
+                            label = {
+                                when (screen) {
+                                    Screen.Home -> Text("主页")
+                                    Screen.Statistics -> Text("统计")
+                                    Screen.Settings -> Text("猪猪配置")
+                                    else -> {}
+                                }
+                            },
+                            selected = currentDestination?.hierarchy?.any { it.route == screen.route } == true,
+                            colors = NavigationBarItemDefaults.colors(
+                                selectedIconColor = MaterialTheme.colorScheme.primary,
+                                selectedTextColor = MaterialTheme.colorScheme.primary,
+                                indicatorColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),
+                                unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                                unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant
+                            ),
+                            onClick = {
+                                val isCurrentRoute = currentDestination?.hierarchy?.any { it.route == screen.route } == true
+                                if (!isCurrentRoute) {
+                                    navController.navigate(screen.route) {
+                                        popUpTo(navController.graph.findStartDestination().id) {
+                                            saveState = true
+                                        }
+                                        launchSingleTop = true
+                                        restoreState = true
+                                    }
+                                }
+                            }
+                        )
+                    }
+                }
+            }
+        }
+    ) { innerPadding ->
+        NavHost(
+            navController = navController,
+            startDestination = startDestination,
+            modifier = Modifier.padding(innerPadding)
+        ) {
+            composable(Screen.Lock.route) {
+                LockScreen(
+                    onUnlocked = {
+                        navController.navigate(Screen.Home.route) {
+                            popUpTo(Screen.Lock.route) { inclusive = true }
+                        }
+                    }
+                )
+            }
+            composable(Screen.Home.route) { HomeScreen() }
+            composable(Screen.Statistics.route) { StatisticsScreen() }
+            composable(Screen.Settings.route) { SettingsScreen() }
+        }
+    }
+}
+        Screen.Settings
+    )
+
+    val navBackStackEntry by navController.currentBackStackEntryAsState()
+    val currentDestination = navBackStackEntry?.destination
+
     // Show BottomBar only when not in Lock Screen
     val showBottomBar = currentDestination?.route != Screen.Lock.route
 
