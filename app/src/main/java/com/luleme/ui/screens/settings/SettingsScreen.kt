@@ -36,7 +36,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.luleme.BuildConfig
 import com.luleme.ui.components.CuteSwitch
 import com.luleme.ui.components.SettingGroup
 import com.luleme.ui.components.SettingItem
@@ -50,7 +49,6 @@ fun SettingsScreen(
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val context = LocalContext.current
-    val uriHandler = LocalUriHandler.current
 
     fun toggleSystemLock(enabled: Boolean) {
         if (enabled) {
@@ -72,14 +70,14 @@ fun SettingsScreen(
     ) {
         item {
             Text(
-                text = "设置",
+                text = "猪猪文本",
                 style = MaterialTheme.typography.headlineLarge.copy(fontWeight = FontWeight.Bold),
                 modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp)
             )
         }
 
         item {
-            SettingGroup(title = "个人信息") {
+            SettingGroup(title = "傻猪[粉丝猪]年龄") {
                 var ageSliderValue by remember(uiState.age) { mutableStateOf(uiState.age.toFloat()) }
                 val pendingAge = ageSliderValue.roundToInt().coerceIn(18, 100)
 
@@ -141,13 +139,12 @@ fun SettingsScreen(
 
         item {
             Text(
-                text = "Luleme v${BuildConfig.VERSION_NAME}",
+                text = "猪猪配置",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(top = 24.dp)
-                    .clickable { uriHandler.openUri("https://github.com/sky22333/luleme") },
+                    .padding(top = 24.dp),
                 textAlign = androidx.compose.ui.text.style.TextAlign.Center
             )
         }
