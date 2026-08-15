@@ -2,76 +2,47 @@ package com.luleme.ui.theme
 
 import androidx.compose.ui.graphics.Color
 
-const val BackgroundLightArgb = 0xFFF8FDFF.toInt()
-const val BackgroundDarkArgb = 0xFF1A1C1E.toInt()
-
-// Light Theme - Cute & Modern Pastel Palette
-// Primary: Soft Sky Blue
-val PrimaryLight = Color(0xFF64B5F6)
-val OnPrimaryLight = Color(0xFFFFFFFF)
-val PrimaryContainerLight = Color(0xFFE3F2FD)
-val OnPrimaryContainerLight = Color(0xFF1976D2)
-
-// Secondary: Soft Mint Green
-val SecondaryLight = Color(0xFF81C784)
-val OnSecondaryLight = Color(0xFFFFFFFF)
-val SecondaryContainerLight = Color(0xFFE8F5E9)
-val OnSecondaryContainerLight = Color(0xFF388E3C)
-
-// Tertiary: Soft Lavender/Purple (for accents)
-val TertiaryLight = Color(0xFFBA68C8)
-val OnTertiaryLight = Color(0xFFFFFFFF)
-val TertiaryContainerLight = Color(0xFFF3E5F5)
-val OnTertiaryContainerLight = Color(0xFF7B1FA2)
-
-// Functional Colors
-val ErrorLight = Color(0xFFE57373)
-val OnErrorLight = Color(0xFFFFFFFF)
-val ErrorContainerLight = Color(0xFFFFEBEE)
-val OnErrorContainerLight = Color(0xFFC62828)
-
-// Backgrounds & Surfaces
-val BackgroundLight = Color(BackgroundLightArgb) // Very slight blue tint for freshness
-val OnBackgroundLight = Color(0xFF1A1C1E)
-val SurfaceLight = Color(0xFFFFFFFF)
-val OnSurfaceLight = Color(0xFF1A1C1E)
-val SurfaceVariantLight = Color(0xFFF0F4F8) // Slightly darker surface for cards
-val OnSurfaceVariantLight = Color(0xFF42474E)
-val OutlineLight = Color(0xFF70777C)
-
-// Dark Theme - Muted but Cute
-// Primary: Muted Blue
-val PrimaryDark = Color(0xFF90CAF9)
-val OnPrimaryDark = Color(0xFF0D47A1)
-val PrimaryContainerDark = Color(0xFF1565C0)
-val OnPrimaryContainerDark = Color(0xFFD1E4FF)
-
-// Secondary: Muted Green
-val SecondaryDark = Color(0xFFA5D6A7)
-val OnSecondaryDark = Color(0xFF1B5E20)
-val SecondaryContainerDark = Color(0xFF2E7D32)
-val OnSecondaryContainerDark = Color(0xFFB9F6CA)
-
-// Tertiary: Muted Purple
-val TertiaryDark = Color(0xFFCE93D8)
-val OnTertiaryDark = Color(0xFF4A148C)
-val TertiaryContainerDark = Color(0xFF7B1FA2)
-val OnTertiaryContainerDark = Color(0xFFE1BEE7)
-
-val ErrorDark = Color(0xFFEF9A9A)
-val OnErrorDark = Color(0xFFB71C1C)
-val ErrorContainerDark = Color(0xFF930006)
-val OnErrorContainerDark = Color(0xFFFFDAD6)
-
-val BackgroundDark = Color(BackgroundDarkArgb)
+// ===== 暗黑玻璃体主题 =====
+// 背景：纯黑
+val BackgroundDark = Color(0xFF000000)
 val OnBackgroundDark = Color(0xFFE2E2E6)
-val SurfaceDark = Color(0xFF1A1C1E)
-val OnSurfaceDark = Color(0xFFE2E2E6)
-val SurfaceVariantDark = Color(0xFF42474E)
-val OnSurfaceVariantDark = Color(0xFFC2C7CF)
-val OutlineDark = Color(0xFF8C9199)
 
-// Custom Colors for "Cute" Vibe
-val CutePink = Color(0xFFF48FB1)
-val CuteYellow = Color(0xFFFFF59D)
-val CuteOrange = Color(0xFFFFCC80)
+// 玻璃体表面：半透明深灰
+val SurfaceDark = Color(0xFF1A1A1A)
+val OnSurfaceDark = Color(0xFFE2E2E6)
+val SurfaceVariantDark = Color(0xFF2A2A2A)
+val OnSurfaceVariantDark = Color(0xFFB0B0B0)
+
+// 主色：霓虹蓝紫
+val PrimaryDark = Color(0xFF8B5CF6)
+val OnPrimaryDark = Color(0xFFFFFFFF)
+val PrimaryContainerDark = Color(0xFF7C3AED)
+val OnPrimaryContainerDark = Color(0xFFE0E7FF)
+
+// 辅色：霓虹青
+val SecondaryDark = Color(0xFF06B6D4)
+val OnSecondaryDark = Color(0xFF000000)
+val SecondaryContainerDark = Color(0xFF0891B2)
+val OnSecondaryContainerDark = Color(0xFFCFFAFE)
+
+// 点缀：霓虹粉
+val TertiaryDark = Color(0xFFEC4899)
+val OnTertiaryDark = Color(0xFFFFFFFF)
+val TertiaryContainerDark = Color(0xFFDB2777)
+val OnTertiaryContainerDark = Color(0xFFFCE7F3)
+
+val ErrorDark = Color(0xFFEF4444)
+val OnErrorDark = Color(0xFFFFFFFF)
+val ErrorContainerDark = Color(0xFFDC2626)
+val OnErrorContainerDark = Color(0xFFFFE4E6)
+
+val OutlineDark = Color(0xFF404040)
+
+// 自定义颜色
+val CutePink = Color(0xFFEC4899)
+val CuteYellow = Color(0xFFF59E0B)
+val CuteOrange = Color(0xFFF97316)
+
+// 玻璃体卡片背景
+val GlassBackground = Color(0xFF1A1A1A)
+val GlassBorder = Color(0xFF333333)
