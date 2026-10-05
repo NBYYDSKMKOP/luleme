@@ -1,0 +1,7410 @@
+local __lt = (function()
+	local globalEnv = _G or {};
+	local sharedEnv = rawget(_G, "shared");
+	local cacheHost = type(sharedEnv) == "table" and sharedEnv or (type(globalEnv) == "table" and globalEnv or nil);
+	if cacheHost then
+		local cached = rawget(cacheHost, "__lt_service_resolver");
+		if type(cached) == "table" then
+			return cached;
+		end;
+	end;
+	local loader = loadstring or load;
+	if type(loader) ~= "function" then
+		error("Service resolver loader unavailable");
+	end;
+	local resolver = loader(game:HttpGet("https://ltseverydayyou.github.io/ServiceResolver.luau"), "@ServiceResolver.luau");
+	if type(resolver) ~= "function" then
+		error("Service resolver failed to compile");
+	end;
+	local loaded = resolver();
+	if type(loaded) ~= "table" then
+		error("Service resolver failed to load");
+	end;
+	if cacheHost then
+		cacheHost.__lt_service_resolver = loaded;
+	end;
+	return loaded;
+end)();
+
+---@diagnostic disable: undefined-global
+if game.GameId == 847722000 then
+	local genv = _G
+
+	local function addScriptEnv(list, seen, env)
+		if type(env) == "table" and env ~= _G and not seen[env] then
+			seen[env] = true
+			list[#list + 1] = env
+		end
+	end
+
+	local function getScriptEnvs()
+		local list = {}
+		local seen = {}
+		if type(getfenv) == "function" then
+			for i = 0, 6 do
+				pcall(function()
+					addScriptEnv(list, seen, getfenv(i))
+				end)
+			end
+		end
+		if type(getrenv) == "function" then
+			pcall(function()
+				local env = getrenv()
+				addScriptEnv(list, seen, env)
+				if type(env) == "table" then
+					addScriptEnv(list, seen, rawget(env, "_G"))
+					addScriptEnv(list, seen, rawget(env, "shared"))
+				end
+			end)
+		end
+		return list
+	end
+
+	local function getScriptGlobal(k)
+		local envs = getScriptEnvs()
+		for i = 1, #envs do
+			local env = envs[i]
+			local ok, v = pcall(rawget, env, k)
+			if ok and v ~= nil then
+				return v, env
+			end
+		end
+		return rawget(_G, k), _G
+	end
+
+	local function setScriptGlobal(k, v)
+		local hit = false
+		local envs = getScriptEnvs()
+		for i = 1, #envs do
+			local env = envs[i]
+			local ok, old = pcall(rawget, env, k)
+			if ok and old ~= nil then
+				pcall(function()
+					env[k] = v
+				end)
+				hit = true
+			end
+		end
+		if not hit then
+			local env = envs[1] or _G
+			pcall(function()
+				env[k] = v
+			end)
+		end
+	end
+
+	local function getScriptTable(k)
+		local v = getScriptGlobal(k)
+		if type(v) ~= "table" then
+			v = {}
+			setScriptGlobal(k, v)
+		end
+		return v
+	end
+	local Http = game:GetService("HttpService")
+	local cfgFolder = "StillloolTheRake"
+	local fileApi = type(readfile) == "function" and type(writefile) == "function"
+	local hasFile = type(isfile) == "function"
+	local folderApi = type(makefolder) == "function"
+	local cfgFile = folderApi and (cfgFolder .. "/StillloolState.json") or "StillloolTheRake_StillloolState.json"
+	local hasFolder = type(isfolder) == "function"
+	local saved = {}
+
+	local function makeCfgFolder()
+		if not folderApi then
+			return
+		end
+		pcall(function()
+			if not hasFolder or not isfolder(cfgFolder) then
+				makefolder(cfgFolder)
+			end
+		end)
+	end
+
+	local function loadCfg()
+		if not fileApi then
+			return {}
+		end
+		local ok, res = pcall(function()
+			if hasFile and not isfile(cfgFile) then
+				return {}
+			end
+			local raw = readfile(cfgFile)
+			if type(raw) ~= "string" or raw == "" then
+				return {}
+			end
+			local dec = Http:JSONDecode(raw)
+			return type(dec) == "table" and dec or {}
+		end)
+		return ok and res or {}
+	end
+
+	local function saveCfg(tbl)
+		if not fileApi then
+			return false
+		end
+		makeCfgFolder()
+		local out = {}
+		for k, v in tbl or {} do
+			local tv = typeof(v)
+			if tv == "boolean" or tv == "number" or tv == "string" then
+				out[k] = v
+			end
+		end
+		local ok = pcall(function()
+			writefile(cfgFile, Http:JSONEncode(out))
+		end)
+		return ok
+	end
+
+	local saveQueued = false
+	local saveDirty = false
+
+	local function saveLater()
+		if not fileApi then
+			return
+		end
+		saveDirty = true
+		if saveQueued then
+			return
+		end
+		saveQueued = true
+		if type(task) ~= "table" or type(task.delay) ~= "function" then
+			saveQueued = false
+			saveDirty = false
+			saveCfg(saved)
+			return
+		end
+		task.delay(0.6, function()
+			saveQueued = false
+			if saveDirty then
+				saveDirty = false
+				saveCfg(saved)
+			end
+		end)
+	end
+
+	saved = loadCfg()
+	local st = genv.RakeGuiState
+	if type(st) ~= "table" then
+		st = {}
+		genv.RakeGuiState = st
+	end
+
+	local function cfgGet(k, def)
+		if saved[k] ~= nil then
+			return saved[k]
+		end
+		if st[k] ~= nil then
+			return st[k]
+		end
+		return def
+	end
+
+	local function cfgSet(k, v)
+		st[k] = v
+		saved[k] = v
+		saveLater()
+	end
+
+	local function cfgBool(k, def)
+		return cfgGet(k, def) == true
+	end
+
+	local function cfgNum(k, def, min, max)
+		local n = tonumber(cfgGet(k, def)) or def
+		if min and max then
+			n = math.clamp(n, min, max)
+		end
+		return n
+	end
+
+	local function uiKeyCode(v, def)
+		if typeof(v) == "EnumItem" then
+			return v
+		end
+		local s = tostring(v or "")
+		s = s:gsub("^Enum%%.KeyCode%%.", ""):gsub("^KeyCode%%.", "")
+		local ok, key = pcall(function()
+			return Enum.KeyCode[s]
+		end)
+		if ok and key then
+			return key
+		end
+		return def or Enum.KeyCode.RightControl
+	end
+
+	local function uiKeyName(v, def)
+		if typeof(v) == "EnumItem" then
+			return v.Name
+		end
+		local key = uiKeyCode(v, nil)
+		if key then
+			return key.Name
+		end
+		return tostring(def or "RightControl")
+	end
+
+	local function uiBoolSet(k, v)
+		cfgSet(k, v == true)
+	end
+
+	local lp0 = game:GetService("Players").LocalPlayer
+	local dzMin = lp0 and tonumber(lp0.CameraMinZoomDistance) or 0.5
+	local dzMax = 100000
+	st.fov = cfgNum("fov", tonumber(_G.FieldOfView) or 70, 1, 120)
+	st.fovOn = cfgBool("fovOn", _G.enableFOV == true)
+	st.minZoom = cfgNum("minZoom", tonumber(_G.RakeMinZoom) or 0.5, 0.5, 100000)
+	st.maxZoom = cfgNum("maxZoom", tonumber(_G.RakeMaxZoom) or dzMax or 100000, 0.5, 100000)
+	if st.maxZoom < st.minZoom then
+		st.maxZoom = st.minZoom
+	end
+	st.spd = cfgNum("spd", tonumber(_G.WalkSpeedd) or 16, 0, 30.5)
+	st.spdOn = cfgBool("spdOn", _G.enableSpeed == true)
+	st.freeCam = false
+	st.freeCamSpeed = 0.2
+	st.noFog = cfgBool("noFog", false)
+	st.infStamina = cfgBool("infStamina", false)
+	st.infNight = cfgBool("infNight", false)
+	st.rakeAura = cfgBool("rakeAura", false)
+	st.rakeAuraRange = cfgNum("rakeAuraRange", 12, 6, 30)
+	st.rakeAuraDelay = cfgNum("rakeAuraDelay", 0.12, 0.05, 0.6)
+	st.rakeAuraAutoEquip = cfgBool("rakeAuraAutoEquip", true)
+	st.rakeChams = cfgBool("rakeChams", false)
+	st.playerEsp = cfgBool("playerEsp", false)
+	st.showDist = cfgBool("showDist", false)
+	st.flareEsp = cfgBool("flareEsp", false)
+	st.dropEsp = cfgBool("dropEsp", false)
+	st.locEsp = cfgBool("locEsp", false)
+	st.scrapEsp = cfgBool("scrapEsp", false)
+	st.trapEsp = cfgBool("trapEsp", false)
+	st.hide = false
+	st.noFall = cfgBool("noFall", false)
+	st.instaDrop = cfgBool("instaDrop", false)
+	st.instaTrap = cfgBool("instaTrap", false)
+	st.autoSupplyCollect = cfgBool("autoSupplyCollect", false)
+	st.autoScrapCollect = cfgBool("autoScrapCollect", false)
+	st.autoPowerRestore = cfgBool("autoPowerRestore", false)
+	st.powerRestoreUseToolbox = cfgBool("powerRestoreUseToolbox", true)
+	st.autoHealSelf = cfgBool("autoHealSelf", false)
+	st.autoHealPlayers = cfgBool("autoHealPlayers", false)
+	st.healAutoEquip = cfgBool("healAutoEquip", true)
+	st.healSelfAt = cfgNum("healSelfAt", 55, 1, 100)
+	st.healPlayerAt = cfgNum("healPlayerAt", 60, 1, 100)
+	st.noMonitorStatic = cfgBool("noMonitorStatic", false)
+	st.espSize = cfgNum("espSize", 12, 8, 24)
+	st.espScan = cfgNum("espScan", 0.75, 0.2, 3)
+	st.espMax = cfgNum("espMax", 0, 0, 5000)
+	st.espOutline = false
+	st.espChams = cfgBool("espChams", true)
+	st.espDist = cfgBool("espDist", false)
+	st.uiBind = uiKeyName(cfgGet("uiBind", "RightControl"), "RightControl")
+	st.uiCursor = cfgBool("uiCursor", true)
+	st.uiDragLock = cfgBool("uiDragLock", false)
+	st.uiCompact = cfgBool("uiCompact", false)
+	st.uiResizable = cfgBool("uiResizable", true)
+	st.uiMobileButtons = cfgBool("uiMobileButtons", true)
+	st.uiMobileRight = cfgBool("uiMobileRight", false)
+	st.uiUnlockMouse = cfgBool("uiUnlockMouse", true)
+	st.uiSearchBar = cfgBool("uiSearchBar", true)
+	st.uiGlobalSearch = cfgBool("uiGlobalSearch", false)
+	st.uiSidebarResize = cfgBool("uiSidebarResize", true)
+	st.uiCompacting = cfgBool("uiCompacting", true)
+	st.uiNoSnap = cfgBool("uiNoSnap", false)
+	st.uiToggleFrames = cfgBool("uiToggleFrames", true)
+	st.uiCorner = cfgNum("uiCorner", 4, 0, 20)
+	st.uiDpi = cfgNum("uiDpi", 100, 50, 200)
+	st.infoBubble = cfgBool("infoBubble", true)
+	st.radioSounds = cfgBool("radioSounds", true)
+	st.radioNotifications = cfgBool("radioNotifications", false)
+	st.disableDeathFx = cfgBool("disableDeathFx", false)
+	st.disableMotionBlur = cfgBool("disableMotionBlur", false)
+	st.disableMenuFx = cfgBool("disableMenuFx", false)
+	st.introBypass = cfgBool("introBypass", false)
+	st.promptBypass = cfgBool("promptBypass", false)
+	st.promptDistance = cfgNum("promptDistance", 25, 5, 100)
+	st.disableShadows = cfgBool("disableShadows", false)
+	st.forceChat = cfgBool("forceChat", false)
+	st.muteGameMusic = cfgBool("muteGameMusic", false)
+	st.muteChaseMusic = cfgBool("muteChaseMusic", false)
+	st.enableNametags = cfgBool("enableNametags", false)
+	st.enableSixthSense = cfgBool("enableSixthSense", false)
+	st.muteMovementSounds = cfgBool("muteMovementSounds", false)
+	st.muteFootsteps = cfgBool("muteFootsteps", false)
+	st.muteJumpLand = cfgBool("muteJumpLand", false)
+	st.muteWaterFall = cfgBool("muteWaterFall", false)
+	st.muteDeathSounds = cfgBool("muteDeathSounds", false)
+	st.hidePromptUi = cfgBool("hidePromptUi", false)
+	st.freezeLookAngles = cfgBool("freezeLookAngles", false)
+	st.hideDeathMessages = cfgBool("hideDeathMessages", false)
+	st.blockFavoritePrompts = cfgBool("blockFavoritePrompts", false)
+	st.blockGroupPrompts = cfgBool("blockGroupPrompts", false)
+	st.forcePcDevice = cfgBool("forcePcDevice", false)
+	st.flashlightNoShadows = cfgBool("flashlightNoShadows", false)
+	st.flashlightBoost = cfgBool("flashlightBoost", false)
+	st.flashlightBrightness = math.min(cfgNum("flashlightBrightness", 2, 0, 10), 4)
+	st.flashlightRange = math.min(cfgNum("flashlightRange", 45, 8, 120), 80)
+	st.flashlightAngle = math.min(cfgNum("flashlightAngle", 70, 15, 120), 90)
+	st.flashlightBeamWidth = math.min(cfgNum("flashlightBeamWidth", 0.5, 0, 3), 1)
+	st.disableMenuReopen = cfgBool("disableMenuReopen", false)
+	st.forceBackpack = cfgBool("forceBackpack", false)
+	st.forceMouseIcon = cfgBool("forceMouseIcon", false)
+	st.forceTopbar = cfgBool("forceTopbar", false)
+	st.disableCameraShake = cfgBool("disableCameraShake", false)
+	st.disableCameraBobbing = cfgBool("disableCameraBobbing", false)
+	st.disableVisualFx = cfgBool("disableVisualFx", false)
+	st.hideLocationPopups = cfgBool("hideLocationPopups", false)
+	st.hideScrapPopups = cfgBool("hideScrapPopups", false)
+	st.hideTrapGui = cfgBool("hideTrapGui", false)
+	st.knownPromptBypass = cfgBool("knownPromptBypass", false)
+	st.noDowned = cfgBool("noDowned", false)
+	st.noMoveLock = cfgBool("noMoveLock", false)
+	st.noTrapLock = cfgBool("noTrapLock", false)
+	st.noJumpCooldown = cfgBool("noJumpCooldown", false)
+	st.noJumpscareCam = cfgBool("noJumpscareCam", false)
+	st.noChaseStatic = cfgBool("noChaseStatic", false)
+	st.safeRecover = cfgBool("safeRecover", false)
+	st.fullbright = cfgBool("fullbright", false)
+	st.autoDropPrompts = false
+	st.autoSafePrompts = false
+	st.autoTowerPrompts = false
+	st.autoPowerPrompts = false
+	st.adonisBypass = cfgBool("adonisBypass", true)
+	_G.FieldOfView = st.fov
+	_G.enableFOV = st.fovOn
+	_G.RakeMinZoom = st.minZoom
+	_G.RakeMaxZoom = st.maxZoom
+	_G.WalkSpeedd = st.spd
+	_G.enableSpeed = st.spdOn
+	_G.FreeCam = false
+	_G.FreeCamSpeed = st.freeCamSpeed
+	_G.NoFog = st.noFog
+	_G.InfStamina = st.infStamina
+	_G.InfNightVision = st.infNight
+	_G.RakeKillAura = st.rakeAura
+	_G.RakeAuraRange = st.rakeAuraRange
+	_G.RakeAuraDelay = st.rakeAuraDelay
+	_G.RakeAuraAutoEquip = st.rakeAuraAutoEquip
+	_G.RakeChams = st.rakeChams
+	_G.PlayerESP = st.playerEsp
+	_G.PlayerESPShowDistance = st.showDist
+	_G.FlareGunESP = st.flareEsp
+	_G.SupplyDropESP = st.dropEsp
+	_G.LocationESP = st.locEsp
+	_G.ScrapESP = st.scrapEsp
+	_G.RakeTrapESP = st.trapEsp
+	_G.NoFallDMG = st.noFall
+	_G.InstaOpenSupplyDrop = st.instaDrop
+	_G.InstaCloseRakeTrap = st.instaTrap
+	_G.RakeAutoSupplyCollect = st.autoSupplyCollect
+	_G.RakeAutoScrapCollect = st.autoScrapCollect
+	_G.RakeAutoPowerRestore = st.autoPowerRestore
+	_G.RakeAutoHealSelf = st.autoHealSelf
+	_G.RakeAutoHealPlayers = st.autoHealPlayers
+	_G.RakeHealAutoEquip = st.healAutoEquip
+	_G.RakeHealSelfAt = st.healSelfAt
+	_G.RakeHealPlayerAt = st.healPlayerAt
+	_G.RakeNoMonitorStatic = st.noMonitorStatic
+	_G.RakeDisableDeathFx = st.disableDeathFx
+	_G.RakeDisableMotionBlur = st.disableMotionBlur
+	_G.RakeDisableMenuFx = st.disableMenuFx
+	_G.RakeIntroBypass = st.introBypass
+	_G.RakePromptBypass = st.promptBypass
+	_G.RakeDisableShadows = st.disableShadows
+	_G.RakeForceChat = st.forceChat
+	_G.RakeForceNametags = st.enableNametags
+	_G.RakeForceSixthSense = st.enableSixthSense
+	_G.RakeMuteMovementSounds = st.muteMovementSounds
+	_G.RakeMuteFootsteps = st.muteFootsteps
+	_G.RakeMuteJumpLand = st.muteJumpLand
+	_G.RakeMuteWaterFall = st.muteWaterFall
+	_G.RakeMuteDeathSounds = st.muteDeathSounds
+	_G.RakeHidePromptUi = st.hidePromptUi
+	_G.RakeFreezeLookAngles = st.freezeLookAngles
+	_G.RakeHideDeathMessages = st.hideDeathMessages
+	_G.RakeBlockFavoritePrompts = st.blockFavoritePrompts
+	_G.RakeBlockGroupPrompts = st.blockGroupPrompts
+	_G.RakeFlashlightNoShadows = st.flashlightNoShadows
+	_G.RakeFlashlightBoost = st.flashlightBoost
+	_G.RakeFlashlightBrightness = st.flashlightBrightness
+	_G.RakeFlashlightRange = st.flashlightRange
+	_G.RakeFlashlightAngle = st.flashlightAngle
+	_G.RakeFlashlightBeamWidth = st.flashlightBeamWidth
+	_G.RakeDisableMenuReopen = st.disableMenuReopen
+	_G.RakeForceBackpack = st.forceBackpack
+	_G.RakeForceMouseIcon = st.forceMouseIcon
+	_G.RakeForceTopbar = st.forceTopbar
+	_G.RakeDisableCameraShake = st.disableCameraShake
+	_G.RakeDisableCameraBobbing = st.disableCameraBobbing
+	_G.RakeDisableVisualFx = st.disableVisualFx
+	_G.RakeHideLocationPopups = st.hideLocationPopups
+	_G.RakeHideScrapPopups = st.hideScrapPopups
+	_G.RakeHideTrapGui = st.hideTrapGui
+	_G.RakeKnownPromptBypass = st.knownPromptBypass
+	_G.RakeNoDowned = st.noDowned
+	_G.RakeNoMoveLock = st.noMoveLock
+	_G.RakeNoTrapLock = st.noTrapLock
+	_G.RakeNoJumpCooldown = st.noJumpCooldown
+	_G.RakeNoJumpscareCam = st.noJumpscareCam
+	_G.RakeNoChaseStatic = st.noChaseStatic
+	_G.RakeSafeRecover = st.safeRecover
+	_G.RakeFullbright = st.fullbright
+	_G.RakeAutoDropPrompts = false
+	_G.RakeAutoSafePrompts = false
+	_G.RakeAutoTowerPrompts = false
+	_G.RakeAutoPowerPrompts = false
+	if genv.RakeGui then
+		return
+	end
+
+	local svc = {}
+	local ref = cloneref or function(v) return v end
+
+	local function ClonedService(name)
+		local c = svc[name]
+		if c then
+			return c
+		end
+		local ok, res = pcall(function()
+			return __lt.cs(name, ref)
+		end)
+		if ok and res then
+			svc[name] = res
+			return res
+		end
+		local raw = __lt.gs(name)
+		local out = raw and ref(raw) or raw
+		svc[name] = out
+		return out
+	end
+
+	local function resolveAdonisEnv()
+		local gc = getgc or (debug and debug.getgc)
+		local hookf = hookfunction
+		local env = getrenv
+		local renv = nil
+		if type(env) == "function" then
+			pcall(function()
+				renv = env()
+			end)
+		end
+		local dbgInfo = (type(renv) == "table" and renv.debug and renv.debug.info) or (debug and debug.info)
+		local newcc = newcclosure or function(fn)
+			return fn
+		end
+		local typeOf = typeof or function(value)
+			return type(value)
+		end
+		return gc, hookf, env, dbgInfo, newcc, typeOf
+	end
+
+	local function eachAdonisGc(fn)
+		local gc = getgc or (debug and debug.getgc)
+		if type(gc) ~= "function" then
+			return false
+		end
+		local ok, list = pcall(gc, true)
+		if not ok or type(list) ~= "table" then
+			return false
+		end
+		for _, value in next, list do
+			local stop = fn(value)
+			if stop then
+				return true
+			end
+		end
+		return true
+	end
+
+	local function detectAdonis()
+		local gc, hookf, env, dbgInfo, _, typeOf = resolveAdonisEnv()
+		if not (type(gc) == "function" and type(hookf) == "function" and type(env) == "function" and type(dbgInfo) == "function") then
+			return false
+		end
+		local found = false
+		eachAdonisGc(function(value)
+			if typeOf(value) == "table" then
+				local hasDetected = typeOf(rawget(value, "Detected")) == "function"
+				local hasKill = typeOf(rawget(value, "Kill")) == "function"
+				local hasVars = rawget(value, "Variables") ~= nil
+				local hasProcess = rawget(value, "Process") ~= nil
+				if hasDetected or (hasKill and hasVars and hasProcess) then
+					found = true
+					return true
+				end
+			end
+		end)
+		return found
+	end
+
+	local function bypassAdonis()
+		local gc, hookf, env, dbgInfo, newcc, typeOf = resolveAdonisEnv()
+		if not (type(gc) == "function" and type(hookf) == "function" and type(env) == "function" and type(dbgInfo) == "function") then
+			return false
+		end
+		local DetectedMeth, KillMeth
+		eachAdonisGc(function(value)
+			if typeOf(value) == "table" then
+				local detected = rawget(value, "Detected")
+				local kill = rawget(value, "Kill")
+				if typeOf(detected) == "function" and not DetectedMeth then
+					DetectedMeth = detected
+					pcall(function()
+						hookf(DetectedMeth, function(methodName, methodFunc)
+							if methodName ~= "_" then end
+							return true
+						end)
+					end)
+				end
+				if rawget(value, "Variables") and rawget(value, "Process") and typeOf(kill) == "function" and not KillMeth then
+					KillMeth = kill
+					pcall(function()
+						hookf(KillMeth, function(killFunc) end)
+					end)
+				end
+				if DetectedMeth and KillMeth then
+					return true
+				end
+			end
+		end)
+		if DetectedMeth and dbgInfo then
+			local old
+			pcall(function()
+				old = hookf(dbgInfo, newcc(function(...)
+					local functionName = ...
+					if functionName == DetectedMeth then
+						return coroutine.yield(coroutine.running())
+					end
+					return old(...)
+				end))
+			end)
+		end
+		return DetectedMeth ~= nil
+	end
+
+	local function runAdonisBypass(force)
+		if st.adonisBypass ~= true and force ~= true then
+			return false
+		end
+		if genv.RakeAdonisBypassed then
+			return true
+		end
+		local ok, detected = pcall(detectAdonis)
+		if ok and detected and bypassAdonis() then
+			genv.RakeAdonisBypassed = true
+			return true
+		end
+		return false
+	end
+
+	_G.RakeAdonisBypass = st.adonisBypass
+	task.spawn(runAdonisBypass)
+
+
+
+	local Me = {
+		LocalPlayer = ClonedService("Players").LocalPlayer,
+		Character = ClonedService("Players").LocalPlayer.Character,
+	}
+
+
+
+
+	local AllowRunService = true
+
+	local Run = ClonedService("RunService")
+	local Ws = ClonedService("Workspace")
+	local Plrs = ClonedService("Players")
+	local Rep = ClonedService("ReplicatedStorage")
+	local Lit = ClonedService("Lighting")
+	local Tws = ClonedService("TweenService")
+	local wait = task and task.wait or wait
+	local conns = {}
+	local wipeFog
+	local cleanupEsp
+	local esp
+
+	local function bind(sig, fn)
+		if not sig or type(fn) ~= "function" then
+			return nil
+		end
+		local ok, c = pcall(function()
+			return sig:Connect(fn)
+		end)
+		if ok and c then
+			conns[#conns + 1] = c
+			return c
+		end
+		return nil
+	end
+
+	local function wipeConns()
+		for i = #conns, 1, -1 do
+			local c = conns[i]
+			if c then
+				pcall(function()
+					c:Disconnect()
+				end)
+			end
+			conns[i] = nil
+		end
+	end
+
+	local function safeDestroy(v)
+		if v then
+			pcall(function()
+				v:Destroy()
+			end)
+		end
+	end
+
+	local function safeDrawRemove(v)
+		if v then
+			pcall(function()
+				v.Visible = false
+				if type(v.Remove) == "function" then
+					v:Remove()
+				elseif type(v.Destroy) == "function" then
+					v:Destroy()
+				end
+			end)
+		end
+	end
+
+	local function kids(v)
+		if not v then
+			return {}
+		end
+		local ok, res = pcall(function()
+			return v:GetChildren()
+		end)
+		return ok and res or {}
+	end
+
+	local function desc(v)
+		if not v then
+			return {}
+		end
+		local ok, res = pcall(function()
+			return v:QueryDescendants("Instance")
+		end)
+		if ok and res then
+			return res
+		end
+		ok, res = pcall(function()
+			return v:QueryDescendants("Instance")
+		end)
+		return ok and res or {}
+	end
+
+	local function addEnv(list, seen, env)
+		if type(env) == "table" and not seen[env] then
+			seen[env] = true
+			list[#list + 1] = env
+		end
+	end
+
+	local function getModuleEnvList()
+		local list = {}
+		local seen = {}
+		addEnv(list, seen, _G)
+		pcall(function()
+			addEnv(list, seen, shared)
+		end)
+		pcall(function()
+			addEnv(list, seen, rawget(_G, "shared"))
+		end)
+		local envs = getScriptEnvs()
+		for i = 1, #envs do
+			local env = envs[i]
+			addEnv(list, seen, env)
+			pcall(function()
+				addEnv(list, seen, rawget(env, "_G"))
+				addEnv(list, seen, rawget(env, "shared"))
+			end)
+		end
+		return list
+	end
+
+	local function isLiveInst(obj)
+		if typeof(obj) ~= "Instance" then
+			return false
+		end
+		local ok, par = pcall(function()
+			return obj.Parent
+		end)
+		if not ok or par == nil then
+			return false
+		end
+		local ok2, live = pcall(function()
+			return obj:IsDescendantOf(game)
+		end)
+		return ok2 and live == true
+	end
+
+	local function isLiveMod(mod)
+		if typeof(mod) ~= "Instance" then
+			return false
+		end
+		local ok, isModule = pcall(function()
+			return mod:IsA("ModuleScript")
+		end)
+		return ok and isModule == true
+	end
+
+	local function safeReq(mod)
+		if type(require) ~= "function" then
+			return false
+		end
+		if not isLiveMod(mod) then
+			return false
+		end
+		return pcall(require, mod)
+	end
+
+	local function ffc(v, name)
+		if not v then
+			return nil
+		end
+		local ok, res = pcall(function()
+			return v:FindFirstChild(name)
+		end)
+		return ok and res or nil
+	end
+
+	local function ffcr(v, name)
+		if not v then
+			return nil
+		end
+		local ok, res = pcall(function()
+			return v:FindFirstChild(name, true)
+		end)
+		return ok and res or nil
+	end
+
+	local function ffca(v, class)
+		if not v then
+			return nil
+		end
+		local ok, res = pcall(function()
+			return v:FindFirstChildWhichIsA(class, true)
+		end)
+		return ok and res or nil
+	end
+
+	local zeroVelocity = Vector3.new(0, 0, 0)
+
+	local function isPlayerCharacterPart(part)
+		local model = part and part:FindFirstAncestorOfClass("Model")
+		while model do
+			local ok, player = pcall(function()
+				return Plrs:GetPlayerFromCharacter(model)
+			end)
+			if ok and player then
+				return true
+			end
+			local parent = model.Parent
+			model = parent and parent:FindFirstAncestorOfClass("Model") or nil
+		end
+		return false
+	end
+
+	local function zeroBasePartVelocity(obj)
+		if not obj or not obj:IsA("BasePart") or isPlayerCharacterPart(obj) then
+			return
+		end
+		pcall(function()
+			if obj.AssemblyLinearVelocity ~= zeroVelocity then
+				obj.AssemblyLinearVelocity = zeroVelocity
+			end
+		end)
+	end
+
+	local function zeroWorkspaceBasePartVelocities()
+		local ok, objects = pcall(function()
+			return Ws:QueryDescendants("Instance")
+		end)
+		for _, obj in ok and objects or {} do
+			zeroBasePartVelocity(obj)
+		end
+	end
+
+	bind(Ws.DescendantAdded, function(obj)
+		zeroBasePartVelocity(obj)
+	end)
+
+	if type(task) == "table" and type(task.defer) == "function" then
+		task.defer(zeroWorkspaceBasePartVelocities)
+	else
+		zeroWorkspaceBasePartVelocities()
+	end
+
+	local function valOf(v, def)
+		if not v then
+			return def
+		end
+		local ok, res = pcall(function()
+			return v.Value
+		end)
+		if ok and res ~= nil then
+			return res
+		end
+		return def
+	end
+
+	local function eachGc(fn)
+		if type(getgc) ~= "function" then
+			return false
+		end
+		local ok, res = pcall(getgc, true)
+		if not ok or type(res) ~= "table" then
+			return false
+		end
+		for _, v in res do
+			pcall(fn, v)
+		end
+		return true
+	end
+
+	local infSys = {
+		tabs = setmetatable({}, { __mode = "k" }),
+		token = 0,
+		fast = 1,
+		scan = 2.5,
+	}
+
+	local function patchInfTab(v)
+		if type(v) ~= "table" then
+			return false
+		end
+
+		local hit = false
+		if st.infStamina == true and rawget(v, "STAMINA_REGEN") ~= nil then
+			v.STAMINA_REGEN = 100
+			v.JUMP_STAMINA = 0
+			v.JUMP_COOLDOWN = 0
+			v.STAMINA_TAKE = 0
+			v.stamina = 100
+			hit = true
+		end
+
+		if st.infNight == true and rawget(v, "NVG_TAKE") ~= nil then
+			v.NVG_TAKE = 0
+			v.NVG_REGEN = 100
+			hit = true
+		end
+
+		if hit then
+			infSys.tabs[v] = true
+		end
+		return hit
+	end
+
+	local function applyInfTabs(scan)
+		if st.infStamina ~= true and st.infNight ~= true then
+			return
+		end
+
+		for v in infSys.tabs do
+			pcall(patchInfTab, v)
+		end
+
+		if scan == true then
+			eachGc(patchInfTab)
+		end
+	end
+
+	local function queueInfTabs(loops)
+		if st.infStamina ~= true and st.infNight ~= true then
+			return
+		end
+
+		infSys.token += 1
+		local token = infSys.token
+		task.spawn(function()
+			for i = 1, loops or 12 do
+				if token ~= infSys.token or AllowRunService ~= true then
+					return
+				end
+				applyInfTabs(i == 1)
+				task.wait(i <= 4 and 0.25 or 0.75)
+			end
+		end)
+	end
+
+	-- Stamina Table
+    --[[
+    for i,v in getgc(true) do
+        if type(v) == "table" then
+            if rawget(v,"stamina") then
+                _G.StaminaTable = v
+            end
+        end
+    end
+    ]]
+
+	local HidePart
+	local HidePartHightLight
+
+	
+	local curChar
+	local curHum
+	local curHrp
+	local charConns = {}
+
+	local function wipeCharConns()
+		for i = #charConns, 1, -1 do
+			local c = charConns[i]
+			if c then
+				pcall(function()
+					c:Disconnect()
+				end)
+			end
+			charConns[i] = nil
+		end
+	end
+
+	local function bindChar(sig, fn)
+		if not sig or type(fn) ~= "function" then
+			return nil
+		end
+		local ok, c = pcall(function()
+			return sig:Connect(fn)
+		end)
+		if ok and c then
+			charConns[#charConns + 1] = c
+			return c
+		end
+		return nil
+	end
+
+	local function getChar()
+		local lp = Plrs.LocalPlayer
+		local ch = lp and lp.Character
+		if ch then
+			curChar = ch
+		end
+		return curChar
+	end
+
+	local function getHum()
+		if curHum and curHum.Parent then
+			return curHum
+		end
+		local ch = getChar()
+		if not ch then
+			return nil
+		end
+		local hum = ffca(ch, "Humanoid")
+		if hum then
+			curHum = hum
+			return hum
+		end
+		return nil
+	end
+	
+	local function GET_HRP()
+		local ch = getChar()
+		if not ch then
+			return nil
+		end
+		if curHrp and curHrp.Parent == ch then
+			return curHrp
+		end
+		local r = ffcr(ch, "HumanoidRootPart")
+		if r then
+			curHrp = r
+		end
+		return r
+	end
+
+local function SET_HRP_CFRAME(cframer)
+	local r = GET_HRP()
+	if r then
+		r.CFrame = cframer
+		return true
+	end
+	return false
+end
+
+
+	local function SET_HRP_ANCHORED(v)
+		local r = GET_HRP()
+		if r then
+			r.Anchored = v == true
+			return true
+		end
+		return false
+	end
+
+	local clientBypass = {}
+	clientBypass.originals = {}
+	clientBypass.mutedSounds = setmetatable({}, { __mode = "k" })
+	clientBypass.prompts = setmetatable({}, { __mode = "k" })
+	clientBypass.promptHold = setmetatable({}, { __mode = "k" })
+	clientBypass.ch = setmetatable({}, { __mode = "k" })
+	clientBypass.chDeviceOrig = setmetatable({}, { __mode = "k" })
+	clientBypass.deviceGlobalOrig = nil
+	clientBypass.chT = 3
+	clientBypass.fullbrightOn = false
+	clientBypass.fullbrightApply = false
+	clientBypass.fullbrightConns = {}
+	clientBypass.lightState = setmetatable({}, { __mode = "k" })
+	clientBypass.lightConns = setmetatable({}, { __mode = "k" })
+	clientBypass.lightApply = false
+	clientBypass.lastSafe = nil
+	clientBypass.bobFns = setmetatable({}, { __mode = "k" })
+	clientBypass.uiState = setmetatable({}, { __mode = "k" })
+	clientBypass.stamMods = setmetatable({}, { __mode = "k" })
+	clientBypass.mainMods = setmetatable({}, { __mode = "k" })
+	clientBypass.modRoots = setmetatable({}, { __mode = "k" })
+	clientBypass.stamTk = setmetatable({}, { __mode = "k" })
+	clientBypass.stamScanT = 12
+	clientBypass.gstmnaOwned = false
+	clientBypass.gstmnaInst = nil
+	clientBypass.gstmnaFn = function()
+		return 100
+	end
+	clientBypass.noop = function() end
+
+	function clientBypass.getCamera()
+		return Ws.CurrentCamera or workspace.CurrentCamera
+	end
+
+	function clientBypass.getPlayerGui()
+		local lp = Plrs.LocalPlayer
+		return lp and ffc(lp, "PlayerGui") or nil
+	end
+
+	function clientBypass.getGSettings()
+		local gs = getScriptTable("GSettings")
+		return gs
+	end
+
+	function clientBypass.setCoreGuiEnabled(kind, enabled)
+		local starter = ClonedService("StarterGui")
+		pcall(function()
+			starter:SetCoreGuiEnabled(kind, enabled == true)
+		end)
+	end
+
+	function clientBypass.restoreCoreGui()
+		local starter = ClonedService("StarterGui")
+		pcall(function()
+			starter:SetCore("TopbarEnabled", true)
+		end)
+		pcall(function()
+			starter:SetCore("ResetButtonCallback", true)
+		end)
+		clientBypass.setCoreGuiEnabled(Enum.CoreGuiType.Health, true)
+		clientBypass.setCoreGuiEnabled(Enum.CoreGuiType.Backpack, true)
+		clientBypass.setCoreGuiEnabled(Enum.CoreGuiType.PlayerList, true)
+		clientBypass.setCoreGuiEnabled(Enum.CoreGuiType.Chat, true)
+		pcall(function()
+			ClonedService("UserInputService").MouseIconEnabled = true
+		end)
+	end
+
+	function clientBypass.forceCoreParts()
+		if st.forceTopbar == true then
+			pcall(function()
+				ClonedService("StarterGui"):SetCore("TopbarEnabled", true)
+			end)
+		end
+		if st.forceBackpack == true then
+			clientBypass.setCoreGuiEnabled(Enum.CoreGuiType.Backpack, true)
+		end
+		if st.forceMouseIcon == true then
+			pcall(function()
+				ClonedService("UserInputService").MouseIconEnabled = true
+			end)
+		end
+	end
+
+	function clientBypass.destroyCameraEffects(match)
+		local cam = clientBypass.getCamera()
+		if not cam then
+			return 0
+		end
+		local removed = 0
+		for _, v in kids(cam) do
+			if match(v) then
+				removed += 1
+				safeDestroy(v)
+			end
+		end
+		return removed
+	end
+
+	function clientBypass.applyMotionBlurBypass()
+		if st.disableMotionBlur ~= true then
+			return 0
+		end
+		local gs = clientBypass.getGSettings()
+		gs.MotionBlur = false
+		setScriptGlobal("GSettings", gs)
+		return clientBypass.destroyCameraEffects(function(v)
+			return (v:IsA("BlurEffect") and (v.Name == "MotionBlur" or v.Name == "ESCB"))
+				or (v:IsA("ColorCorrectionEffect") and v.Name == "ESCC")
+		end)
+	end
+
+	function clientBypass.applyMenuFxBypass()
+		if st.disableMenuFx ~= true then
+			return 0
+		end
+		return clientBypass.destroyCameraEffects(function(v)
+			return (v:IsA("BlurEffect") and v.Name == "ESCB")
+				or (v:IsA("ColorCorrectionEffect") and v.Name == "ESCC")
+		end)
+	end
+
+	function clientBypass.fireSettingsChanged(name, value)
+		pcall(function()
+			local ev = ffc(Rep, "SettingsChangedEvent")
+			if ev and ev.Fire then
+				ev:Fire(name, value)
+			end
+		end)
+	end
+
+	function clientBypass.defaultOriginal(key, value)
+		if clientBypass.originals[key] == nil then
+			clientBypass.originals[key] = value
+		end
+		return clientBypass.originals[key]
+	end
+
+	function clientBypass.setSoundVolume(name, muted)
+		local ss = ClonedService("SoundService")
+		local snd = ss and ffc(ss, name)
+		if not snd then
+			return false
+		end
+		local key = "SoundVolume_" .. tostring(name)
+		local original = clientBypass.defaultOriginal(key, snd.Volume)
+		if muted ~= true and (tonumber(original) or 0) <= 0 and (name == "GameMusic" or name == "ChaseMusic") then
+			original = 1
+			clientBypass.originals[key] = original
+		end
+		pcall(function()
+			snd.Volume = muted == true and 0 or original
+		end)
+		return true
+	end
+
+	function clientBypass.ensureLocalPlayerMarker(name, enabled, className)
+		local lp = Plrs.LocalPlayer
+		if not lp then
+			return nil
+		end
+		local marker = ffc(lp, name)
+		if enabled ~= true then
+			if marker and marker:GetAttribute("RakeAdminMarker") == true then
+				safeDestroy(marker)
+			end
+			return nil
+		end
+		if not marker then
+			local ok, obj = pcall(function()
+				return Instance.new(className or "BoolValue")
+			end)
+			if not ok or not obj then
+				return nil
+			end
+			obj.Name = name
+			obj:SetAttribute("RakeAdminMarker", true)
+			obj.Parent = lp
+			marker = obj
+		end
+		pcall(function()
+			if marker:IsA("BoolValue") then
+				marker.Value = true
+			end
+		end)
+		return marker
+	end
+
+	function clientBypass.applyGameSettingOverrides()
+		local gs = clientBypass.getGSettings()
+		gs.MotionBlur = st.disableMotionBlur == true and false or clientBypass.defaultOriginal("GSettings_MotionBlur", gs.MotionBlur ~= false)
+		gs.Shadows = st.disableShadows == true and false or clientBypass.defaultOriginal("GSettings_Shadows", gs.Shadows ~= false)
+		gs.Chat = st.forceChat == true and true or clientBypass.defaultOriginal("GSettings_Chat", gs.Chat ~= false)
+		gs.GameMusic = st.muteGameMusic == true and false or clientBypass.defaultOriginal("GSettings_GameMusic", gs.GameMusic ~= false)
+		gs.ChaseMusic = st.muteChaseMusic == true and false or clientBypass.defaultOriginal("GSettings_ChaseMusic", gs.ChaseMusic ~= false)
+		gs.Nametags = st.enableNametags == true and true or clientBypass.defaultOriginal("GSettings_Nametags", gs.Nametags ~= false)
+		pcall(function()
+			local original = clientBypass.defaultOriginal("Lighting_GlobalShadows", Lit.GlobalShadows)
+			Lit.GlobalShadows = st.disableShadows == true and false or original
+		end)
+		pcall(function()
+			ClonedService("Chat").BubbleChatEnabled = gs.Chat == true
+		end)
+		clientBypass.setCoreGuiEnabled(Enum.CoreGuiType.Chat, gs.Chat == true)
+		clientBypass.setSoundVolume("GameMusic", st.muteGameMusic == true)
+		clientBypass.setSoundVolume("ChaseMusic", st.muteChaseMusic == true)
+		if st.enableSixthSense == true then
+			clientBypass.ensureLocalPlayerMarker("SixthSenseGamepass", true, "BoolValue")
+			gs.SixthSense = true
+		else
+			clientBypass.ensureLocalPlayerMarker("SixthSenseGamepass", false, "BoolValue")
+			gs.SixthSense = clientBypass.defaultOriginal("GSettings_SixthSense", gs.SixthSense == true)
+		end
+		setScriptGlobal("GSettings", gs)
+	end
+
+	function clientBypass.applyDeathFxBypass()
+		if st.disableDeathFx ~= true then
+			return 0
+		end
+		pcall(function()
+			local died = ffc(Rep, "DiedEvent")
+			if died and died.Fire then
+				died:Fire(false, true)
+			end
+		end)
+		return clientBypass.destroyCameraEffects(function(v)
+			return (v:IsA("BlurEffect") and (v.Name == "Blur" or v.Name == "BlurEffect"))
+				or (v:IsA("ColorCorrectionEffect") and (v.Name == "ColorCorrection" or v.Name == "ColorCorrectionEffect"))
+		end)
+	end
+
+	function clientBypass.removeIntroGui()
+		local pg = clientBypass.getPlayerGui()
+		if not pg then
+			return 0
+		end
+		local removed = 0
+		for _, gui in kids(pg) do
+			if gui:IsA("ScreenGui") and (gui.Name == "IntroGUI" or (ffc(gui, "LoadingFrame") and ffc(gui, "MenuFrame"))) then
+				removed += 1
+				safeDestroy(gui)
+			end
+		end
+		return removed
+	end
+
+	function clientBypass.applyIntroBypass()
+		if st.introBypass ~= true then
+			return 0
+		end
+		setScriptGlobal("IsLoading", nil)
+		setScriptGlobal("SLoaded", true)
+		local lp = Plrs.LocalPlayer
+		pcall(function()
+			if lp then
+				lp:SetAttribute("Started", true)
+			end
+		end)
+		clientBypass.restoreCoreGui()
+		local removed = clientBypass.removeIntroGui()
+		pcall(function()
+			local died = ffc(Rep, "DiedEvent")
+			if died and died.Fire then
+				died:Fire(false, true)
+			end
+		end)
+		return removed
+	end
+
+	function clientBypass.invokeStartRemote(mode)
+		local remote = ffc(Rep, "StartRemote")
+		if not remote or not remote.InvokeServer then
+			return false
+		end
+		local ok, res = pcall(function()
+			return remote:InvokeServer(mode)
+		end)
+		return ok, res
+	end
+
+	function clientBypass.isHoldRequiredPrompt(prompt)
+		if not prompt or not prompt:IsA("ProximityPrompt") then
+			return false
+		end
+		local map = ffc(Ws, "Map")
+		if not map then
+			return false
+		end
+		local ps = ffc(map, "PowerStation")
+		local ot = ffc(map, "ObservationTower")
+		local ok, res = pcall(function()
+			return (ps and prompt:IsDescendantOf(ps)) or (ot and prompt:IsDescendantOf(ot))
+		end)
+		return ok and res == true
+	end
+
+	function clientBypass.cachePromptHold(prompt)
+		if not prompt or not prompt:IsA("ProximityPrompt") then
+			return
+		end
+		if clientBypass.promptHold[prompt] then
+			return
+		end
+		pcall(function()
+			local hold = tonumber(prompt.HoldDuration)
+			if hold and hold > 0 then
+				clientBypass.promptHold[prompt] = hold
+			end
+		end)
+	end
+
+	function clientBypass.restorePromptHold(prompt)
+		if not prompt or not prompt:IsA("ProximityPrompt") then
+			return
+		end
+		pcall(function()
+			local hold = tonumber(clientBypass.promptHold[prompt]) or tonumber(prompt:GetAttribute("ActivateTime")) or tonumber(prompt:GetAttribute("HoldDuration")) or tonumber(prompt:GetAttribute("OHoldDuration"))
+			if not hold or hold <= 0 then
+				hold = 1
+			end
+			if prompt.HoldDuration <= 0 then
+				prompt.HoldDuration = hold
+			end
+		end)
+	end
+
+	function clientBypass.unlockPrompt(prompt)
+		if not prompt or not prompt:IsA("ProximityPrompt") then
+			return false
+		end
+		clientBypass.prompts[prompt] = true
+		clientBypass.cachePromptHold(prompt)
+		local keepHold = clientBypass.isHoldRequiredPrompt(prompt)
+		local dist = math.clamp(tonumber(st.promptDistance) or 25, 5, 100)
+		pcall(function()
+			prompt.Enabled = true
+			if keepHold then
+				clientBypass.restorePromptHold(prompt)
+			else
+				prompt.HoldDuration = 0
+			end
+			prompt.RequiresLineOfSight = false
+			prompt.ClickablePrompt = true
+			prompt.MaxActivationDistance = dist
+			prompt:SetAttribute("ODistance", dist)
+		end)
+		pcall(function()
+			prompt:SetAttribute("Busy", false)
+			prompt:SetAttribute("Busy2", false)
+			prompt:SetAttribute("Unavailable", false)
+			prompt:SetAttribute("Unavailable2", false)
+		end)
+		return true
+	end
+
+	function clientBypass.applyPromptBypass()
+		if st.promptBypass ~= true then
+			return 0
+		end
+		local n = 0
+		for _, obj in desc(Ws) do
+			if clientBypass.unlockPrompt(obj) then
+				n += 1
+			end
+		end
+		return n
+	end
+
+	function clientBypass.applyKnownPromptBypass()
+		if st.promptBypass ~= true then
+			return 0
+		end
+		local n = 0
+		for prompt in clientBypass.prompts do
+			if prompt and prompt.Parent then
+				if clientBypass.unlockPrompt(prompt) then
+					n += 1
+				end
+			else
+				clientBypass.prompts[prompt] = nil
+			end
+		end
+		return n
+	end
+
+	function clientBypass.muteSound(sound)
+		if not sound or not sound:IsA("Sound") then
+			return false
+		end
+		pcall(function()
+			if sound:GetAttribute("RakeAdminOriginalVolume") == nil then
+				sound:SetAttribute("RakeAdminOriginalVolume", sound.Volume)
+			end
+			sound:SetAttribute("RakeAdminMuted", true)
+			sound.Volume = 0
+			sound.Playing = false
+			sound.TimePosition = 0
+			clientBypass.mutedSounds[sound] = true
+		end)
+		return true
+	end
+
+	function clientBypass.restoreMutedSounds()
+		local n = 0
+		for obj in clientBypass.mutedSounds do
+			if not obj or not obj.Parent then
+				clientBypass.mutedSounds[obj] = nil
+			elseif obj:IsA("Sound") and obj:GetAttribute("RakeAdminMuted") == true and not clientBypass.shouldMuteSound(obj) then
+				pcall(function()
+					local original = obj:GetAttribute("RakeAdminOriginalVolume")
+					if type(original) == "number" then
+						obj.Volume = original
+					end
+					obj:SetAttribute("RakeAdminMuted", false)
+					clientBypass.mutedSounds[obj] = nil
+					n += 1
+				end)
+			end
+		end
+		return n
+	end
+
+	function clientBypass.soundKind(sound)
+		local name = tostring(sound and sound.Name or ""):lower()
+		if name == "running" or name == "climbing" or name == "swimming" or name == "freefalling" then
+			return "movement"
+		end
+		if name == "jumping" or name == "landhard" or name:find("land", 1, true) or name:find("jump", 1, true) then
+			return "jumpLand"
+		end
+		if name:find("splash", 1, true) or name:find("swim", 1, true) or name:find("freefall", 1, true) then
+			return "waterFall"
+		end
+		if name:find("death", 1, true) or name:find("died", 1, true) then
+			return "death"
+		end
+		local parent = sound and sound.Parent
+		if parent and (parent.Name == "HumanoidRootPart" or parent == clientBypass.getCamera()) then
+			return "footstep"
+		end
+		return "other"
+	end
+
+	function clientBypass.shouldMuteSound(sound)
+		local kind = clientBypass.soundKind(sound)
+		return (st.muteMovementSounds == true and kind == "movement")
+			or (st.muteFootsteps == true and kind == "footstep")
+			or (st.muteJumpLand == true and kind == "jumpLand")
+			or (st.muteWaterFall == true and kind == "waterFall")
+			or (st.muteDeathSounds == true and kind == "death")
+	end
+
+	function clientBypass.scanSoundContainer(root)
+		if not root then
+			return 0
+		end
+		local n = 0
+		for _, obj in desc(root) do
+			if obj:IsA("Sound") and clientBypass.shouldMuteSound(obj) then
+				if clientBypass.muteSound(obj) then
+					n += 1
+				end
+			end
+		end
+		return n
+	end
+
+	function clientBypass.applySoundBypasses()
+		if not (st.muteMovementSounds or st.muteFootsteps or st.muteJumpLand or st.muteWaterFall or st.muteDeathSounds) then
+			clientBypass.restoreMutedSounds()
+			return 0
+		end
+		local n = 0
+		local cam = clientBypass.getCamera()
+		n += clientBypass.scanSoundContainer(cam)
+		local lp = Plrs.LocalPlayer
+		for _, p in kids(Plrs) do
+			n += clientBypass.scanSoundContainer(p.Character)
+		end
+		if lp and lp.Character then
+			n += clientBypass.scanSoundContainer(lp.Character)
+		end
+		n += clientBypass.scanSoundContainer(ffcr(Ws, "Rake"))
+		clientBypass.restoreMutedSounds()
+		return n
+	end
+
+	function clientBypass.applyPromptUiBypass()
+		local pg = clientBypass.getPlayerGui()
+		local gui = pg and ffc(pg, "ProximityPrompts")
+		if gui and gui:IsA("ScreenGui") then
+			gui.Enabled = st.hidePromptUi ~= true
+		end
+		return gui ~= nil
+	end
+
+	function clientBypass.applyLookFreeze()
+		if st.freezeLookAngles ~= true then
+			return false
+		end
+		pcall(function()
+			local remote = ffc(Rep, "SetLookAngles")
+			if remote and remote.FireServer then
+				remote:FireServer(0, 0)
+			end
+		end)
+		return true
+	end
+
+	function clientBypass.applyDeathMessageBypass()
+		local active = st.hideDeathMessages == true or st.muteDeathSounds == true
+		if not active and clientBypass.deathMsgApplied ~= true then
+			return 0
+		end
+		local pg = clientBypass.getPlayerGui()
+		if not pg then
+			return 0
+		end
+		local n = 0
+		for _, obj in desc(pg) do
+			if obj.Name == "DeathMsg" and (obj:IsA("TextLabel") or obj:IsA("TextButton") or obj:IsA("TextBox")) then
+				obj.Visible = st.hideDeathMessages ~= true
+				if st.hideDeathMessages == true then
+					obj.TextTransparency = 1
+					obj.TextStrokeTransparency = 1
+					clientBypass.deathMsgApplied = true
+					n += 1
+				end
+			elseif obj:IsA("Sound") and obj.Name == "Boom" and st.muteDeathSounds == true then
+				if clientBypass.muteSound(obj) then
+					n += 1
+				end
+			end
+		end
+		if not active then
+			clientBypass.deathMsgApplied = false
+		end
+		return n
+	end
+
+	function clientBypass.cleanupPromptModals()
+		local pg = clientBypass.getPlayerGui()
+		if not pg then
+			return 0
+		end
+		local n = 0
+		for _, gui in kids(pg) do
+			if gui:IsA("ScreenGui") and ((st.blockFavoritePrompts == true and gui.Name == "_fav") or (st.blockGroupPrompts == true and gui.Name == "_fav2")) then
+				n += 1
+				safeDestroy(gui)
+			end
+		end
+		return n
+	end
+
+	function clientBypass.restoreDeviceSpoof()
+		local orig = clientBypass.deviceGlobalOrig
+		if type(orig) ~= "table" and next(clientBypass.chDeviceOrig) == nil then
+			return true
+		end
+		if type(orig) == "table" then
+			setScriptGlobal("deviceType", orig.deviceType)
+			setScriptGlobal("deviceType2", orig.deviceType2)
+			setScriptGlobal("inputType", orig.inputType)
+		end
+		for t, old in clientBypass.chDeviceOrig do
+			if type(t) == "table" and type(old) == "table" then
+				pcall(function()
+					t.deviceType = old.deviceType
+					t.deviceType2 = old.deviceType2
+					t.inputType = old.inputType
+					t.isMobile = old.isMobile
+				end)
+			end
+			clientBypass.chDeviceOrig[t] = nil
+		end
+		clientBypass.deviceGlobalOrig = nil
+		return true
+	end
+
+	function clientBypass.applyDeviceSpoof()
+		if st.forcePcDevice ~= true then
+			return clientBypass.restoreDeviceSpoof()
+		end
+		if type(clientBypass.deviceGlobalOrig) ~= "table" then
+			clientBypass.deviceGlobalOrig = {
+				deviceType = getScriptGlobal("deviceType"),
+				deviceType2 = getScriptGlobal("deviceType2"),
+				inputType = getScriptGlobal("inputType"),
+			}
+		end
+		setScriptGlobal("deviceType", "PC")
+		setScriptGlobal("deviceType2", nil)
+		setScriptGlobal("inputType", "PC")
+		pcall(function()
+			local ev = getScriptGlobal("InputTypeChangeEvent")
+			if ev and ev.Fire then
+				ev:Fire("PC")
+			end
+		end)
+		if clientBypass.applyCH then
+			pcall(clientBypass.applyCH, true)
+		end
+		return true
+	end
+
+	function clientBypass.flashlightRoots()
+		local lp = Plrs.LocalPlayer
+		local list = {}
+		local ch = getChar()
+		local bp = lp and ffc(lp, "Backpack")
+		for _, root in { ch, bp } do
+			if root then
+				for _, obj in kids(root) do
+					if obj:IsA("Tool") and obj.Name:lower():find("flashlight", 1, true) then
+						list[#list + 1] = obj
+					end
+				end
+			end
+		end
+		return list
+	end
+
+	function clientBypass.saveLightState(obj)
+		local rec = clientBypass.lightState[obj]
+		if rec then
+			return rec
+		end
+		rec = {}
+		clientBypass.lightState[obj] = rec
+		pcall(function()
+			if obj:IsA("Light") then
+				rec.Brightness = obj.Brightness
+				rec.Range = obj.Range
+				rec.Shadows = obj.Shadows
+				rec.Enabled = obj.Enabled
+				if obj:IsA("SpotLight") then
+					rec.Angle = obj.Angle
+				end
+			elseif obj:IsA("Beam") then
+				rec.Enabled = obj.Enabled
+				rec.Width0 = obj.Width0
+				rec.Width1 = obj.Width1
+				rec.Brightness = obj.Brightness
+				rec.LightEmission = obj.LightEmission
+				rec.Transparency = obj.Transparency
+			elseif obj:IsA("ParticleEmitter") then
+				rec.Enabled = obj.Enabled
+				rec.Rate = obj.Rate
+				rec.LightEmission = obj.LightEmission
+				rec.ZOffset = obj.ZOffset
+			elseif obj:IsA("BasePart") then
+				rec.Transparency = obj.Transparency
+			end
+		end)
+		return rec
+	end
+
+	function clientBypass.setObjProp(obj, prop, val)
+		pcall(function()
+			if obj[prop] ~= val then
+				obj[prop] = val
+			end
+		end)
+	end
+
+	function clientBypass.restoreLightObj(obj, rec)
+		if not (obj and obj.Parent and type(rec) == "table") then
+			return false
+		end
+		for k, v in rec do
+			clientBypass.setObjProp(obj, k, v)
+		end
+		return true
+	end
+
+	function clientBypass.restoreLightTool(root)
+		local n = 0
+		for obj, rec in clientBypass.lightState do
+			if obj and obj.Parent and (not root or obj:IsDescendantOf(root)) then
+				if clientBypass.restoreLightObj(obj, rec) then
+					n += 1
+				end
+				clientBypass.lightState[obj] = nil
+			end
+		end
+		return n
+	end
+
+	function clientBypass.restoreLightToolBypasses()
+		local n = clientBypass.restoreLightTool(nil)
+		for obj, conns in clientBypass.lightConns do
+			if type(conns) == "table" then
+				for _, c in conns do
+					pcall(function()
+						c:Disconnect()
+					end)
+				end
+			end
+			clientBypass.lightConns[obj] = nil
+		end
+		return n
+	end
+
+	function clientBypass.isFlashlightOn(tool)
+		local got = false
+		for _, obj in desc(tool) do
+			if obj:IsA("Light") then
+				got = true
+				local ok, on = pcall(function()
+					return obj.Enabled == true and obj.Brightness > 0 and obj.Range > 0
+				end)
+				if ok and on then
+					return true
+				end
+			elseif obj:IsA("Beam") then
+				got = true
+				local ok, on = pcall(function()
+					return obj.Enabled == true and ((obj.Width0 or 0) > 0.02 or (obj.Width1 or 0) > 0.02)
+				end)
+				if ok and on then
+					return true
+				end
+			elseif obj:IsA("ParticleEmitter") and obj.Name:lower():find("light", 1, true) then
+				got = true
+				local ok, on = pcall(function()
+					return obj.Enabled == true and obj.Rate > 0
+				end)
+				if ok and on then
+					return true
+				end
+			end
+		end
+		return got == false
+	end
+
+	function clientBypass.bindFlashlightObj(obj)
+		if clientBypass.lightConns[obj] then
+			return
+		end
+		local conns = {}
+		clientBypass.lightConns[obj] = conns
+		local function reapply()
+			if clientBypass.lightApply == true then
+				return
+			end
+			if st.flashlightBoost == true or st.flashlightNoShadows == true then
+				clientBypass.applyLightToolBypasses()
+			end
+		end
+		local props = {}
+		if obj:IsA("Light") then
+			props = { "Enabled", "Brightness", "Range", "Shadows" }
+			if obj:IsA("SpotLight") then
+				props[#props + 1] = "Angle"
+			end
+		elseif obj:IsA("Beam") then
+			props = { "Enabled", "Width0", "Width1", "Brightness", "LightEmission", "Transparency" }
+		elseif obj:IsA("ParticleEmitter") then
+			props = { "Enabled", "Rate", "LightEmission", "ZOffset" }
+		else
+			return
+		end
+		for _, prop in props do
+			local ok, con = pcall(function()
+				return obj:GetPropertyChangedSignal(prop):Connect(reapply)
+			end)
+			if ok and con then
+				conns[#conns + 1] = con
+			end
+		end
+	end
+
+	function clientBypass.bindFlashlightTool(tool)
+		for _, obj in desc(tool) do
+			if obj:IsA("Light") or obj:IsA("Beam") or (obj:IsA("ParticleEmitter") and obj.Name:lower():find("light", 1, true)) then
+				clientBypass.bindFlashlightObj(obj)
+			end
+		end
+	end
+
+	function clientBypass.applyLightToolBypasses()
+		if clientBypass.lightApply == true then
+			return 0
+		end
+		local active = st.flashlightNoShadows == true or st.flashlightBoost == true
+		if not active then
+			return clientBypass.restoreLightToolBypasses()
+		end
+		clientBypass.lightApply = true
+		local n = 0
+		for _, tool in clientBypass.flashlightRoots() do
+			clientBypass.bindFlashlightTool(tool)
+			local on = clientBypass.isFlashlightOn(tool)
+			if on ~= true then
+				n += clientBypass.restoreLightTool(tool)
+				continue
+			end
+			for _, obj in desc(tool) do
+				if obj:IsA("Light") then
+					clientBypass.saveLightState(obj)
+					if st.flashlightNoShadows == true then
+						clientBypass.setObjProp(obj, "Shadows", false)
+					end
+					if st.flashlightBoost == true and obj.Enabled == true then
+						clientBypass.setObjProp(obj, "Brightness", math.clamp(tonumber(st.flashlightBrightness) or 2, 0, 10))
+						clientBypass.setObjProp(obj, "Range", math.clamp(tonumber(st.flashlightRange) or 45, 8, 120))
+						if obj:IsA("SpotLight") then
+							clientBypass.setObjProp(obj, "Angle", math.clamp(tonumber(st.flashlightAngle) or 70, 15, 120))
+						end
+					end
+					n += 1
+				elseif obj:IsA("Beam") then
+					clientBypass.saveLightState(obj)
+					if st.flashlightBoost == true and obj.Enabled == true then
+						local w = math.clamp(tonumber(st.flashlightBeamWidth) or 0.5, 0, 3)
+						clientBypass.setObjProp(obj, "Width0", w)
+						clientBypass.setObjProp(obj, "Width1", w * 1.15)
+						clientBypass.setObjProp(obj, "Brightness", math.clamp((tonumber(st.flashlightBrightness) or 2) * 0.35, 0, 4))
+						clientBypass.setObjProp(obj, "LightEmission", 0.55)
+						clientBypass.setObjProp(obj, "Transparency", NumberSequence.new(0.45))
+					end
+					n += 1
+				elseif obj:IsA("ParticleEmitter") and obj.Name:lower():find("light", 1, true) then
+					clientBypass.saveLightState(obj)
+					if st.flashlightBoost == true and obj.Enabled == true then
+						clientBypass.setObjProp(obj, "Rate", math.clamp((tonumber(st.flashlightBrightness) or 2) * 4, 0, 30))
+						clientBypass.setObjProp(obj, "LightEmission", 0.65)
+						clientBypass.setObjProp(obj, "ZOffset", 0.1)
+					end
+					n += 1
+				elseif obj:IsA("BasePart") and st.flashlightNoShadows == true and (obj.Name == "LShadow1" or obj.Name == "LShadow2") then
+					clientBypass.saveLightState(obj)
+					clientBypass.setObjProp(obj, "Transparency", 1)
+					n += 1
+				end
+			end
+		end
+		clientBypass.lightApply = false
+		return n
+	end
+
+	function clientBypass.patchMovementModule(mod, enabled)
+		if type(mod) ~= "table" then
+			return false
+		end
+		local cur = rawget(mod, "Movement")
+		if enabled == true then
+			if clientBypass.bobFns[mod] == nil and type(cur) == "function" then
+				clientBypass.bobFns[mod] = cur
+				mod.Movement = clientBypass.noop
+				return true
+			end
+			return clientBypass.bobFns[mod] ~= nil
+		end
+		local old = clientBypass.bobFns[mod]
+		if old then
+			pcall(function()
+				mod.Movement = old
+			end)
+			clientBypass.bobFns[mod] = nil
+			return true
+		end
+		return false
+	end
+
+	function clientBypass.restoreMovementPatches()
+		local n = 0
+		for mod, old in clientBypass.bobFns do
+			if type(mod) == "table" and type(old) == "function" then
+				pcall(function()
+					mod.Movement = old
+				end)
+				n += 1
+			end
+			clientBypass.bobFns[mod] = nil
+		end
+		return n
+	end
+
+	function clientBypass.setGuiHidden(obj, hide)
+		if typeof(obj) ~= "Instance" then
+			return false
+		end
+		local prop
+		if obj:IsA("LayerCollector") then
+			prop = "Enabled"
+		elseif obj:IsA("GuiObject") then
+			prop = "Visible"
+		else
+			return false
+		end
+		local state = clientBypass.uiState[obj]
+		if not state then
+			state = {}
+			clientBypass.uiState[obj] = state
+		end
+		local ok = pcall(function()
+			if state[prop] == nil then
+				state[prop] = obj[prop]
+			end
+			if hide == true then
+				obj[prop] = false
+			elseif state[prop] ~= nil then
+				obj[prop] = state[prop]
+			end
+		end)
+		return ok
+	end
+
+	function clientBypass.restoreHiddenUi()
+		local n = 0
+		for obj, state in clientBypass.uiState do
+			if typeof(obj) == "Instance" and obj.Parent and type(state) == "table" then
+				pcall(function()
+					if state.Enabled ~= nil and obj:IsA("LayerCollector") then
+						obj.Enabled = state.Enabled
+					end
+					if state.Visible ~= nil and obj:IsA("GuiObject") then
+						obj.Visible = state.Visible
+					end
+				end)
+				n += 1
+			end
+			clientBypass.uiState[obj] = nil
+		end
+		return n
+	end
+
+	function clientBypass.isTrapBarGui(gui)
+		return typeof(gui) == "Instance" and gui:IsA("ScreenGui") and gui.Name == "BarGUI" and ffc(gui, "Frame2") ~= nil
+	end
+
+	function clientBypass.applyClientPopupBypasses()
+		local n = 0
+		for ch in clientBypass.ch do
+			if clientBypass.isCH(ch) then
+				local frames = rawget(ch, "frames")
+				local lbl = type(frames) == "table" and rawget(frames, "locationLabel") or nil
+				if clientBypass.setGuiHidden(lbl, st.hideLocationPopups == true) then
+					n += 1
+				end
+			end
+		end
+		local pg = clientBypass.getPlayerGui()
+		if pg then
+			for _, gui in kids(pg) do
+				if gui:IsA("ScreenGui") and gui.Name == "ScrapGUI" then
+					if clientBypass.setGuiHidden(gui, st.hideScrapPopups == true) then
+						n += 1
+					end
+				elseif clientBypass.isTrapBarGui(gui) then
+					if clientBypass.setGuiHidden(gui, st.hideTrapGui == true) then
+						n += 1
+					end
+				end
+			end
+		end
+		return n
+	end
+
+	function clientBypass.path(root, list)
+		local cur = root
+		for i = 1, #list do
+			if not cur then
+				return nil
+			end
+			cur = ffc(cur, list[i])
+		end
+		return cur
+	end
+
+	function clientBypass.unlockPromptIn(obj)
+		if typeof(obj) ~= "Instance" then
+			return false
+		end
+		if obj:IsA("ProximityPrompt") then
+			return clientBypass.unlockPrompt(obj)
+		end
+		return clientBypass.unlockPrompt(ffca(obj, "ProximityPrompt"))
+	end
+
+	function clientBypass.unlockPromptPath(root, list)
+		return clientBypass.unlockPromptIn(clientBypass.path(root, list))
+	end
+
+	function clientBypass.applyKnownGamePrompts()
+		if st.knownPromptBypass ~= true then
+			return 0
+		end
+		local n = 0
+		local map = ffc(Ws, "Map")
+		local paths = {
+			{ "SafeHouse", "Door", "DoorLever", "DoorGUIPart" },
+			{ "SafeHouse", "Door", "LightLever", "LightGUIPart" },
+			{ "SafeHouse", "Door", "Door", "DoorGUIPart" },
+			{ "SafeHouse", "Door", "PowerBox", "GUIPart" },
+			{ "SafeHouse", "Giver", "WalkieTalkie", "Attachment" },
+			{ "PowerStation", "StationFolder", "StationGUIPart" },
+			{ "Shack", "ShopPart" },
+			{ "ObservationTower", "Lights", "LightLever", "LightGUIPart" },
+			{ "ObservationTower", "Door", "DoorLever", "DoorGUIPart" },
+			{ "ObservationTower", "Door", "DoorLever2", "DoorGUIPart2" },
+			{ "ObservationTower", "Radar", "Lever", "RadarGUIPart" },
+			{ "ObservationTower", "LadderPart", "Attachment" },
+			{ "ObservationTower", "Door", "DoorModel", "Door", "KnockA" },
+		}
+		if map then
+			for i = 1, #paths do
+				if clientBypass.unlockPromptPath(map, paths[i]) then
+					n += 1
+				end
+			end
+		end
+		local debris = ffc(Ws, "Debris")
+		local drops = debris and (ffc(debris, "SupplyCrates") or ffc(debris, "SupplyCreates"))
+		if drops then
+			for _, obj in desc(drops) do
+				if obj.Name == "Box" or obj.Name == "GUIPart" or obj:IsA("ProximityPrompt") then
+					if clientBypass.unlockPromptIn(obj) then
+						n += 1
+					end
+				end
+			end
+		end
+		local traps = debris and ffc(debris, "Traps")
+		if traps then
+			for _, trap in kids(traps) do
+				if trap.Name == "RakeTrapModel" and clientBypass.unlockPromptIn(trap) then
+					n += 1
+				end
+			end
+		end
+		return n
+	end
+
+	function clientBypass.cfgVal(cfg, k, def)
+		local ok, res = pcall(function()
+			return cfg[k]
+		end)
+		if ok and res ~= nil then
+			return res
+		end
+		return def
+	end
+
+	function clientBypass.fillStamina(ch)
+		if type(ch) ~= "table" then
+			return false
+		end
+		local vars = rawget(ch, "vars")
+		if type(vars) ~= "table" then
+			return false
+		end
+		local cfg = rawget(ch, "CONFIG")
+		local max = clientBypass.cfgVal(cfg, "MAX_STAMINA", 100)
+		pcall(function()
+			vars.stamina = max
+			vars.can_jump = true
+			vars.can_jump2 = true
+			vars.lastJump = 0
+			vars.handlingSRegen = false
+			vars.regeningS = false
+			vars.breathing = false
+			vars.GT_VTZ = true
+			local fov = rawget(ch, "sprintFovV")
+			if typeof(fov) == "Instance" and fov:IsA("NumberValue") and fov.Value < 0 then
+				fov.Value = 0
+			end
+		end)
+		if clientBypass.isCH and clientBypass.isCH(ch) then
+			clientBypass.ch[ch] = true
+		end
+		return true
+	end
+
+	function clientBypass.fillNvg(ch)
+		if type(ch) ~= "table" then
+			return false
+		end
+		local nvg = rawget(ch, "nvg")
+		if type(nvg) ~= "table" then
+			return false
+		end
+		local cfg = rawget(ch, "CONFIG")
+		pcall(function()
+			nvg.power = clientBypass.cfgVal(cfg, "MAX_NVG_P", 100)
+			nvg.cooldown = false
+			nvg.s = tick()
+		end)
+		if clientBypass.isCH and clientBypass.isCH(ch) then
+			clientBypass.ch[ch] = true
+		end
+		return true
+	end
+
+	function clientBypass.stamCap(ch)
+		if st.infStamina == true then
+			clientBypass.fillStamina(ch)
+		end
+		if st.infNight == true then
+			clientBypass.fillNvg(ch)
+		end
+	end
+
+	function clientBypass.patchStaminaModule(mod)
+		if not isLiveMod(mod) then
+			return false
+		end
+		if clientBypass.stamMods[mod] then
+			return true
+		end
+		if mod.Name ~= "M_H" then
+			return false
+		end
+		local ok, lib = safeReq(mod)
+		if not ok or type(lib) ~= "table" then
+			return false
+		end
+		if type(rawget(lib, "TakeStamina")) ~= "function" and type(rawget(lib, "Update")) ~= "function" then
+			return false
+		end
+		local old = {}
+		for _, name in { "CanSprintCheck", "JumpHandler", "TakeStamina", "StaminaDrain", "DoRegenStamina", "RegenStaminaHandler", "Update" } do
+			local fn = rawget(lib, name)
+			if type(fn) == "function" then
+				old[name] = fn
+			end
+		end
+		clientBypass.stamMods[mod] = { lib = lib, old = old }
+		if old.CanSprintCheck then
+			lib.CanSprintCheck = function(ch, ...)
+				if st.infStamina == true then
+					clientBypass.fillStamina(ch)
+					local vars = type(ch) == "table" and rawget(ch, "vars")
+					local hum = type(ch) == "table" and rawget(ch, "hum")
+					return type(vars) == "table" and vars.canMove ~= false and vars.canMove2 ~= false and (typeof(hum) ~= "Instance" or hum.Health > 0)
+				end
+				return old.CanSprintCheck(ch, ...)
+			end
+		end
+		if old.JumpHandler then
+			lib.JumpHandler = function(ch, state, ...)
+				if st.infStamina == true and state == false then
+					clientBypass.fillStamina(ch)
+					state = true
+				end
+				return old.JumpHandler(ch, state, ...)
+			end
+		end
+		if old.TakeStamina then
+			lib.TakeStamina = function(ch, amount, ...)
+				if st.infStamina == true and type(amount) == "number" and amount > 0 then
+					clientBypass.fillStamina(ch)
+					return
+				end
+				local a, b, c = old.TakeStamina(ch, amount, ...)
+				clientBypass.stamCap(ch)
+				return a, b, c
+			end
+		end
+		if old.StaminaDrain then
+			lib.StaminaDrain = function(ch, ...)
+				if st.infStamina == true then
+					clientBypass.fillStamina(ch)
+					return
+				end
+				return old.StaminaDrain(ch, ...)
+			end
+		end
+		if old.DoRegenStamina then
+			lib.DoRegenStamina = function(ch, ...)
+				if st.infStamina == true then
+					clientBypass.fillStamina(ch)
+					return
+				end
+				return old.DoRegenStamina(ch, ...)
+			end
+		end
+		if old.RegenStaminaHandler then
+			lib.RegenStaminaHandler = function(ch, ...)
+				if st.infStamina == true then
+					clientBypass.fillStamina(ch)
+					return
+				end
+				return old.RegenStaminaHandler(ch, ...)
+			end
+		end
+		if old.Update then
+			lib.Update = function(ch, ...)
+				clientBypass.stamCap(ch)
+				local a, b, c = old.Update(ch, ...)
+				clientBypass.stamCap(ch)
+				return a, b, c
+			end
+		end
+		return true
+	end
+
+	function clientBypass.restoreStaminaModules()
+		for mod, data in clientBypass.stamMods do
+			pcall(function()
+				local lib = data.lib
+				for name, fn in data.old or {} do
+					lib[name] = fn
+				end
+			end)
+			clientBypass.stamMods[mod] = nil
+		end
+	end
+
+	function clientBypass.isMainClientModule(mod)
+		if not isLiveMod(mod) or mod.Name ~= "C_H" then
+			return false
+		end
+		local ok, lib = safeReq(mod)
+		return ok and type(lib) == "table" and type(rawget(lib, "new")) == "function"
+			and (type(rawget(lib, "UpdateHB")) == "function" or type(rawget(lib, "UpdateRS")) == "function")
+	end
+
+	function clientBypass.fetchRootModule()
+		local function accept(mod)
+			if clientBypass.isMainClientModule(mod) then
+				clientBypass.modRoots[mod] = true
+				return mod
+			end
+			return nil
+		end
+
+		for mod in clientBypass.modRoots do
+			local found = accept(mod)
+			if found then
+				return found
+			end
+			clientBypass.modRoots[mod] = nil
+		end
+
+		local envs = getModuleEnvList()
+		for i = 1, #envs do
+			local env = envs[i]
+			local box = type(env) == "table" and rawget(env, "C09KOPGRE09430989PSD39090W3R") or nil
+			local fn = type(box) == "table" and rawget(box, "POKDS908") or nil
+			if type(fn) == "function" then
+				local ok, mod = pcall(fn, "2390WE890OFD-0F")
+				if ok then
+					local found = accept(mod)
+					if found then
+						return found
+					end
+				end
+			end
+		end
+
+		if type(getloadedmodules) == "function" then
+			local ok, modules = pcall(getloadedmodules)
+			if ok and type(modules) == "table" then
+				for _, mod in modules do
+					local found = accept(mod)
+					if found then
+						return found
+					end
+				end
+			end
+		end
+
+		if type(getnilinstances) == "function" then
+			local ok, objects = pcall(getnilinstances)
+			if ok and type(objects) == "table" then
+				for _, obj in objects do
+					local found = accept(obj)
+					if found then
+						return found
+					end
+				end
+			end
+		end
+
+		return nil
+	end
+
+	function clientBypass.captureCH(ch)
+		if clientBypass.addCH(ch) then
+			clientBypass.patchCH(ch)
+			return true
+		end
+		return false
+	end
+
+	function clientBypass.patchMainClientModule(mod)
+		if not isLiveMod(mod) then
+			return false
+		end
+		if clientBypass.mainMods[mod] then
+			return true
+		end
+		local ok, lib = safeReq(mod)
+		if not ok or type(lib) ~= "table" then
+			return false
+		end
+		local old = {}
+		for _, name in { "new", "UpdateHB", "UpdateRS", "Update" } do
+			local fn = rawget(lib, name)
+			if type(fn) == "function" then
+				old[name] = fn
+			end
+		end
+		if not next(old) then
+			return false
+		end
+		clientBypass.mainMods[mod] = { lib = lib, old = old }
+		if old.new then
+			lib.new = function(...)
+				local a, b, c = old.new(...)
+				clientBypass.captureCH(a)
+				return a, b, c
+			end
+		end
+		for _, name in { "UpdateHB", "UpdateRS", "Update" } do
+			local fn = old[name]
+			if fn then
+				lib[name] = function(ch, ...)
+					clientBypass.captureCH(ch)
+					clientBypass.stamCap(ch)
+					local a, b, c = fn(ch, ...)
+					clientBypass.stamCap(ch)
+					return a, b, c
+				end
+			end
+		end
+		return true
+	end
+
+	function clientBypass.restoreMainClientModules()
+		for mod, data in clientBypass.mainMods do
+			pcall(function()
+				local lib = data.lib
+				for name, fn in data.old or {} do
+					lib[name] = fn
+				end
+			end)
+			clientBypass.mainMods[mod] = nil
+		end
+	end
+
+	function clientBypass.addModuleCandidate(obj, seen, list)
+		if isLiveMod(obj) and obj.Name == "M_H" and not seen[obj] then
+			seen[obj] = true
+			list[#list + 1] = obj
+		end
+	end
+
+	function clientBypass.findStaminaModules()
+		local seen = {}
+		local list = {}
+		local root = clientBypass.fetchRootModule()
+		if isLiveMod(root) then
+			clientBypass.patchMainClientModule(root)
+			for _, obj in desc(root) do
+				clientBypass.addModuleCandidate(obj, seen, list)
+			end
+		end
+		for rootMod in clientBypass.modRoots do
+			if isLiveMod(rootMod) then
+				clientBypass.patchMainClientModule(rootMod)
+				for _, obj in desc(rootMod) do
+					clientBypass.addModuleCandidate(obj, seen, list)
+				end
+			else
+				clientBypass.modRoots[rootMod] = nil
+			end
+		end
+		local function scanModuleObject(obj)
+			if clientBypass.isMainClientModule(obj) then
+				clientBypass.modRoots[obj] = true
+				clientBypass.patchMainClientModule(obj)
+				for _, child in desc(obj) do
+					clientBypass.addModuleCandidate(child, seen, list)
+				end
+			end
+			clientBypass.addModuleCandidate(obj, seen, list)
+		end
+		if type(getloadedmodules) == "function" then
+			pcall(function()
+				for _, mod in getloadedmodules() do
+					scanModuleObject(mod)
+				end
+			end)
+		end
+		if type(getnilinstances) == "function" then
+			pcall(function()
+				for _, obj in getnilinstances() do
+					scanModuleObject(obj)
+				end
+			end)
+		end
+		local lp = Plrs.LocalPlayer
+		for _, root in { lp, lp and ffc(lp, "PlayerScripts"), lp and ffc(lp, "PlayerGui"), lp and ffc(lp, "Backpack"), Rep } do
+			for _, obj in desc(root) do
+				clientBypass.addModuleCandidate(obj, seen, list)
+			end
+		end
+		return list
+	end
+
+	function clientBypass.applyStaminaModuleBypass()
+		if st.infStamina ~= true and st.infNight ~= true then
+			return 0
+		end
+		local n = 0
+		local root = clientBypass.fetchRootModule()
+		if isLiveMod(root) and clientBypass.patchMainClientModule(root) then
+			n += 1
+		end
+		for _, mod in clientBypass.findStaminaModules() do
+			if clientBypass.patchStaminaModule(mod) then
+				n += 1
+			end
+		end
+		return n
+	end
+
+	function clientBypass.restoreStaminaSignals()
+		for c in clientBypass.stamTk do
+			pcall(function()
+				if type(c.Enable) == "function" then
+					c:Enable()
+				elseif c.Enabled ~= nil then
+					c.Enabled = true
+				end
+			end)
+			clientBypass.stamTk[c] = nil
+		end
+		local gst = clientBypass.gstmnaInst
+		if clientBypass.gstmnaOwned == true and gst and gst.Parent and gst:IsA("BindableFunction") then
+			pcall(function()
+				gst.OnInvoke = nil
+			end)
+		end
+		clientBypass.gstmnaOwned = false
+		clientBypass.gstmnaInst = nil
+	end
+
+	function clientBypass.applyStaminaSignals()
+		if st.infStamina ~= true then
+			if clientBypass.gstmnaOwned == true or next(clientBypass.stamTk) ~= nil then
+				clientBypass.restoreStaminaSignals()
+			end
+			return false
+		end
+		local gst = ffc(Rep, "GSTMNA")
+		if gst and gst:IsA("BindableFunction") then
+			if st.infStamina == true then
+				pcall(function()
+					gst.OnInvoke = clientBypass.gstmnaFn
+					clientBypass.gstmnaOwned = true
+					clientBypass.gstmnaInst = gst
+				end)
+			elseif clientBypass.gstmnaOwned == true and clientBypass.gstmnaInst == gst then
+				pcall(function()
+					gst.OnInvoke = nil
+				end)
+				clientBypass.gstmnaOwned = false
+				clientBypass.gstmnaInst = nil
+			end
+		end
+		local tk = ffc(Rep, "TKSMNA")
+		if not (tk and tk:IsA("BindableEvent") and type(getconnections) == "function") then
+			if st.infStamina ~= true then
+				clientBypass.restoreStaminaSignals()
+			end
+			return false
+		end
+		local ok, cons = pcall(getconnections, tk.Event)
+		if not ok or type(cons) ~= "table" then
+			return false
+		end
+		for _, c in cons do
+			if st.infStamina == true then
+				pcall(function()
+					if type(c.Disable) == "function" then
+						c:Disable()
+						clientBypass.stamTk[c] = true
+					elseif c.Enabled ~= nil then
+						c.Enabled = false
+						clientBypass.stamTk[c] = true
+					end
+				end)
+			elseif clientBypass.stamTk[c] then
+				pcall(function()
+					if type(c.Enable) == "function" then
+						c:Enable()
+					elseif c.Enabled ~= nil then
+						c.Enabled = true
+					end
+				end)
+				clientBypass.stamTk[c] = nil
+			end
+		end
+		return true
+	end
+
+	clientBypass.fullbrightProps = {
+		"Brightness",
+		"ClockTime",
+		"Ambient",
+		"OutdoorAmbient",
+		"FogStart",
+		"FogEnd",
+		"GlobalShadows",
+		"ExposureCompensation",
+	}
+
+	clientBypass.fullbrightVals = {
+		Brightness = 4,
+		ClockTime = 14,
+		Ambient = Color3.new(1, 1, 1),
+		OutdoorAmbient = Color3.new(1, 1, 1),
+		FogStart = 0,
+		FogEnd = 1e10,
+		GlobalShadows = false,
+		ExposureCompensation = -0.5,
+	}
+
+	clientBypass.fullbrightSignalProps = {
+		"Brightness",
+		"ClockTime",
+		"Ambient",
+		"OutdoorAmbient",
+		"FogStart",
+		"FogEnd",
+		"GlobalShadows",
+	}
+
+	function clientBypass.hasLiveCharacter()
+		local ch = getChar()
+		if not (ch and ch.Parent) then
+			return false
+		end
+		local hum = ffc(ch, "Humanoid")
+		return hum ~= nil and hum.Parent ~= nil
+	end
+
+	function clientBypass.getLightOrig()
+		local store = rawget(genv, "__RakeLightingOriginals")
+		if type(store) ~= "table" then
+			store = {}
+			rawset(genv, "__RakeLightingOriginals", store)
+		end
+		for _, prop in clientBypass.fullbrightProps do
+			if store[prop] == nil then
+				pcall(function()
+					store[prop] = Lit[prop]
+				end)
+			end
+		end
+		return store
+	end
+
+	function clientBypass.setFullbrightValues()
+		if clientBypass.fullbrightApply == true or not clientBypass.hasLiveCharacter() then
+			return false
+		end
+		clientBypass.fullbrightApply = true
+		local ok = pcall(function()
+			for prop, val in clientBypass.fullbrightVals do
+				if Lit[prop] ~= val then
+					Lit[prop] = val
+				end
+			end
+		end)
+		clientBypass.fullbrightApply = false
+		return ok
+	end
+
+	function clientBypass.wipeFullbrightConns()
+		for i = #clientBypass.fullbrightConns, 1, -1 do
+			local c = clientBypass.fullbrightConns[i]
+			if c then
+				pcall(function()
+					c:Disconnect()
+				end)
+			end
+			clientBypass.fullbrightConns[i] = nil
+		end
+	end
+
+	function clientBypass.bindFullbrightSignals()
+		clientBypass.wipeFullbrightConns()
+		if st.fullbright ~= true or not clientBypass.hasLiveCharacter() then
+			return false
+		end
+		for _, prop in clientBypass.fullbrightSignalProps do
+			local val = clientBypass.fullbrightVals[prop]
+			local ok, con = pcall(function()
+				return Lit:GetPropertyChangedSignal(prop):Connect(function()
+					if st.fullbright ~= true or clientBypass.fullbrightApply == true or not clientBypass.hasLiveCharacter() then
+						return
+					end
+					if Lit[prop] ~= val then
+						clientBypass.fullbrightApply = true
+						pcall(function()
+							if Lit[prop] ~= val then
+								Lit[prop] = val
+							end
+						end)
+						clientBypass.fullbrightApply = false
+					end
+				end)
+			end)
+			if ok and con then
+				clientBypass.fullbrightConns[#clientBypass.fullbrightConns + 1] = con
+			end
+		end
+		return true
+	end
+
+	function clientBypass.restoreFullbright()
+		clientBypass.fullbrightOn = false
+		rawset(genv, "__RakeFullbrightActive", false)
+		clientBypass.wipeFullbrightConns()
+		local store = rawget(genv, "__RakeLightingOriginals")
+		if type(store) ~= "table" then
+			return false
+		end
+		pcall(function()
+			for _, prop in clientBypass.fullbrightProps do
+				if store[prop] ~= nil and Lit[prop] ~= store[prop] then
+					Lit[prop] = store[prop]
+				end
+			end
+		end)
+		return true
+	end
+
+	function clientBypass.applyFullbright(force)
+		if st.fullbright ~= true then
+			if clientBypass.fullbrightOn == true or rawget(genv, "__RakeFullbrightActive") == true then
+				return clientBypass.restoreFullbright()
+			end
+			return false
+		end
+		if not clientBypass.hasLiveCharacter() then
+			clientBypass.wipeFullbrightConns()
+			return false
+		end
+		clientBypass.getLightOrig()
+		clientBypass.fullbrightOn = true
+		rawset(genv, "__RakeFullbrightActive", true)
+		clientBypass.setFullbrightValues()
+		clientBypass.bindFullbrightSignals()
+		return true
+	end
+
+	clientBypass.lastTrapRelease = 0
+
+	function clientBypass.tryEscapeTrap()
+		if st.noTrapLock ~= true then
+			return false
+		end
+		local hum = getHum()
+		if not hum then
+			return false
+		end
+		local trapped = false
+		pcall(function()
+			trapped = hum:GetAttribute("iTRPED") == true or hum:GetAttribute("iTRPED3") == true
+		end)
+		if not trapped then
+			return false
+		end
+		if time() - (clientBypass.lastTrapRelease or 0) < 0.35 then
+			return false
+		end
+		clientBypass.lastTrapRelease = time()
+		local ev = ffc(Rep, "TRP_Event")
+		if ev and ev:IsA("RemoteEvent") then
+			pcall(function()
+				ev:FireServer(true)
+			end)
+		end
+		return true
+	end
+
+	function clientBypass.applyCharBypasses()
+		if st.noDowned ~= true and st.noMoveLock ~= true and st.noTrapLock ~= true then
+			return false
+		end
+		local hum = getHum()
+		local ch = getChar()
+		if not ch or not hum then
+			return false
+		end
+		if st.noDowned == true then
+			pcall(function()
+				local d = ffc(ch, "Downed")
+				if d and d:IsA("BoolValue") then
+					d.Value = false
+				end
+				local rt = ffc(ch, "RagdollTime")
+				local sw = rt and ffc(rt, "RagdollSwitch")
+				if sw and sw:IsA("BoolValue") then
+					sw.Value = false
+				end
+			end)
+		end
+		if st.noTrapLock == true then
+			pcall(clientBypass.tryEscapeTrap)
+			pcall(function()
+				hum:SetAttribute("iTRPED", nil)
+				hum:SetAttribute("iTRPED3", nil)
+				hum:SetAttribute("TrapPos", nil)
+				hum:SetAttribute("TrapRelease", true)
+				Run:UnbindFromRenderStep("YawBind")
+			end)
+		end
+		if st.noDowned == true or st.noMoveLock == true or st.noTrapLock == true then
+			pcall(function()
+				hum.PlatformStand = false
+				hum.Sit = false
+				hum.AutoRotate = true
+			end)
+		end
+		if st.noMoveLock == true then
+			pcall(function()
+				local ws = math.clamp(tonumber(st.spd) or 16, 1, 30)
+				if hum.WalkSpeed <= 1 then
+					hum.WalkSpeed = ws
+				end
+				if hum.UseJumpPower ~= false and hum.JumpPower <= 1 then
+					hum.JumpPower = 35
+				elseif hum.UseJumpPower == false and hum.JumpHeight <= 1 then
+					hum.JumpHeight = 7.2
+				end
+			end)
+		end
+		return true
+	end
+
+	function clientBypass.applySafeRecover()
+		if st.safeRecover ~= true then
+			return false
+		end
+		local hum = getHum()
+		local root = GET_HRP()
+		if not hum or not root then
+			return false
+		end
+		local y = root.Position.Y
+		local lim = tonumber(Ws.FallenPartsDestroyHeight) or -500
+		local grounded = hum.FloorMaterial ~= Enum.Material.Air and hum.Health > 0 and y > lim + 35
+		if grounded then
+			clientBypass.lastSafe = root.CFrame
+			return true
+		end
+		local vel = root.AssemblyLinearVelocity
+		if y <= lim + 30 or vel.Y <= -175 then
+			local cf = clientBypass.lastSafe
+			if cf then
+				pcall(function()
+					root.CFrame = cf + Vector3.new(0, 4, 0)
+					root.AssemblyLinearVelocity = Vector3.zero
+					root.AssemblyAngularVelocity = Vector3.zero
+				end)
+				return true
+			end
+		end
+		return false
+	end
+
+	function clientBypass.pathHas(obj, a, b)
+		local ok, path = pcall(function()
+			return obj:GetFullName():lower()
+		end)
+		if not ok or type(path) ~= "string" then
+			return false
+		end
+		return path:find(a, 1, true) ~= nil or (b and path:find(b, 1, true) ~= nil)
+	end
+
+
+	function clientBypass.isCH(t)
+		return type(t) == "table"
+			and rawget(t, "plr") == Plrs.LocalPlayer
+			and type(rawget(t, "vars")) == "table"
+			and type(rawget(t, "funcs")) == "table"
+			and rawget(t, "CONFIG") ~= nil
+	end
+
+	function clientBypass.addCH(t)
+		if clientBypass.isCH(t) then
+			clientBypass.ch[t] = true
+			return true
+		end
+		return false
+	end
+
+	function clientBypass.scanCH()
+		if type(getgc) == "function" then
+			local ok, list = pcall(getgc, true)
+			if ok and type(list) == "table" then
+				for _, t in list do
+					clientBypass.addCH(t)
+				end
+				return true
+			end
+		end
+		if type(filtergc) == "function" then
+			local ok, one = pcall(filtergc, "table", {
+				Keys = { "plr", "vars", "funcs", "CONFIG" },
+			}, true)
+			if ok then
+				clientBypass.addCH(one)
+			end
+		end
+		return false
+	end
+
+	function clientBypass.resetFx(x, hard)
+		if typeof(x) ~= "Instance" then
+			return false
+		end
+		pcall(function()
+			if x:IsA("BlurEffect") then
+				x.Size = 0
+				x.Enabled = false
+			elseif x:IsA("ColorCorrectionEffect") then
+				if hard == true then
+					x.Brightness = 0
+					x.Contrast = 0
+					x.Saturation = 0
+					x.TintColor = Color3.new(1, 1, 1)
+				end
+				x.Enabled = false
+			end
+		end)
+		return true
+	end
+
+	function clientBypass.stopShake(x)
+		if not x then
+			return false
+		end
+		pcall(function()
+			if type(x.StopSustained) == "function" then
+				x:StopSustained(0)
+			end
+		end)
+		pcall(function()
+			if type(x.Stop) == "function" then
+				x:Stop()
+			end
+		end)
+		return true
+	end
+
+	function clientBypass.zeroSpring(x)
+		if type(x) ~= "table" then
+			return false
+		end
+		pcall(function()
+			x.p = Vector3.zero
+			x.v = Vector3.zero
+			x.t = Vector3.zero
+		end)
+		return true
+	end
+
+	function clientBypass.clearTab(t)
+		if type(t) ~= "table" then
+			return
+		end
+		if table.clear then
+			table.clear(t)
+			return
+		end
+		for k in t do
+			t[k] = nil
+		end
+	end
+
+	function clientBypass.patchCH(t)
+		if not clientBypass.isCH(t) then
+			clientBypass.ch[t] = nil
+			return false
+		end
+		local vars = rawget(t, "vars")
+		local cfg = rawget(t, "CONFIG")
+		if st.forcePcDevice == true then
+			if not clientBypass.chDeviceOrig[t] then
+				clientBypass.chDeviceOrig[t] = {
+					deviceType = rawget(t, "deviceType"),
+					deviceType2 = rawget(t, "deviceType2"),
+					inputType = rawget(t, "inputType"),
+					isMobile = rawget(t, "isMobile"),
+				}
+			end
+			pcall(function()
+				t.deviceType = "PC"
+				t.deviceType2 = nil
+				t.inputType = "PC"
+				t.isMobile = false
+			end)
+		end
+		if st.infStamina == true and type(vars) == "table" then
+			clientBypass.fillStamina(t)
+		end
+		if st.infNight == true then
+			clientBypass.fillNvg(t)
+		end
+		if type(vars) == "table" then
+			if st.noDowned == true then
+				pcall(function()
+					vars.downed = false
+					vars.lastDowned = false
+					vars.downedupbusy = false
+					t.dead = false
+					local d = rawget(vars, "downedV")
+					if typeof(d) == "Instance" and d:IsA("BoolValue") then
+						d.Value = false
+					end
+				end)
+			end
+			if st.noTrapLock == true then
+				pcall(function()
+					vars.rTrapped = false
+					vars.trapCamTurn = false
+					vars.trapCamPos = nil
+					vars.sTrap = nil
+					vars.interactHold = false
+					vars.TTakeStamina = false
+					Run:UnbindFromRenderStep("YawBind")
+				end)
+			end
+			if st.noMoveLock == true or st.noJumpCooldown == true then
+				pcall(function()
+					vars.canMove = true
+					vars.can_jump = true
+					vars.can_jump2 = true
+					vars.lastJump = 0
+					vars.handlingSRegen = false
+					vars.regeningS = false
+					if st.noJumpCooldown == true then
+						vars.stamina = clientBypass.cfgVal(cfg, "MAX_STAMINA", 100)
+					end
+				end)
+			end
+		end
+		if st.noJumpscareCam == true then
+			pcall(function()
+				Run:UnbindFromRenderStep("JMPSCR")
+				t.dead = false
+				if type(t.sc) == "table" then
+					t.sc.db = true
+					t.sc.fov = 0
+				end
+				local cam = clientBypass.getCamera()
+				if cam then
+					cam.CameraType = Enum.CameraType.Custom
+					if t.hum then
+						cam.CameraSubject = t.hum
+					end
+				end
+				clientBypass.restoreCoreGui()
+			end)
+		end
+		if st.disableCameraBobbing == true then
+			pcall(function()
+				local camH = rawget(t, "camH")
+				if type(camH) == "table" then
+					clientBypass.patchMovementModule(rawget(camH, "DataModule"), true)
+				end
+				clientBypass.zeroSpring(rawget(t, "cameraspring"))
+				clientBypass.zeroSpring(rawget(t, "cameraspring2"))
+			end)
+		else
+			pcall(function()
+				local camH = rawget(t, "camH")
+				if type(camH) == "table" then
+					clientBypass.patchMovementModule(rawget(camH, "DataModule"), false)
+				end
+			end)
+		end
+		if st.noChaseStatic == true then
+			local rc = rawget(t, "rc")
+			if type(rc) == "table" then
+				pcall(function()
+					rc.chasePlaying = false
+					rc.spotted = false
+					rc.spotted2 = false
+					rc.turn = false
+					rc.lastChaseT = 0
+					rc.lastStaticFactor = 0
+					if rc.fovV then rc.fovV.Value = 0 end
+					for _, snd in { rc.static, rc.chase, rc.heartbeat } do
+						if typeof(snd) == "Instance" and snd:IsA("Sound") then
+							snd.Volume = 0
+							snd.Playing = false
+						end
+					end
+				end)
+			end
+		end
+		if st.disableMotionBlur == true or st.disableDeathFx == true or st.disableVisualFx == true or st.noChaseStatic == true then
+			if type(vars) == "table" then
+				clientBypass.resetFx(rawget(vars, "downBlur"), true)
+				clientBypass.resetFx(rawget(vars, "downCC"), true)
+			end
+			local vi = rawget(t, "visualInstances")
+			if type(vi) == "table" then
+				for name, it in vi do
+					if type(it) == "table" then
+						local hard = st.disableVisualFx == true or (st.disableDeathFx == true and (name == "Death" or name == "Susto"))
+						if st.disableMotionBlur == true or hard then
+							clientBypass.resetFx(rawget(it, "blur"), hard)
+						end
+						if hard then
+							clientBypass.resetFx(rawget(it, "colorcorrection"), true)
+						end
+					end
+				end
+			end
+		end
+		if st.disableCameraShake == true then
+			clientBypass.zeroSpring(rawget(t, "cameraspring"))
+			clientBypass.zeroSpring(rawget(t, "cameraspring2"))
+			clientBypass.stopShake(rawget(t, "lowHpShake"))
+			clientBypass.stopShake(rawget(t, "staticShake"))
+			clientBypass.stopShake(rawget(t, "vibrateShake"))
+			clientBypass.clearTab(rawget(t, "vibrationShakesTable"))
+			t.vibrationShakeRunning = false
+		end
+		if st.hideLocationPopups == true or st.hideScrapPopups == true or st.hideTrapGui == true then
+			clientBypass.applyClientPopupBypasses()
+		end
+		clientBypass.forceCoreParts()
+		return true
+	end
+
+	function clientBypass.applyCH(scan)
+		local any = st.infStamina == true
+			or st.infNight == true
+			or st.disableMotionBlur == true
+			or st.disableDeathFx == true
+			or st.disableVisualFx == true
+			or st.disableCameraShake == true
+			or st.disableCameraBobbing == true
+			or st.hideLocationPopups == true
+			or st.forceBackpack == true
+			or st.forceMouseIcon == true
+			or st.forceTopbar == true
+			or st.noDowned == true
+			or st.noMoveLock == true
+			or st.noTrapLock == true
+			or st.noJumpCooldown == true
+			or st.noJumpscareCam == true
+			or st.noChaseStatic == true
+			or st.forcePcDevice == true
+		if any ~= true then
+			return 0
+		end
+		if scan == true then
+			clientBypass.scanCH()
+		end
+		local n = 0
+		for t in clientBypass.ch do
+			if clientBypass.patchCH(t) then
+				n += 1
+			end
+		end
+		return n
+	end
+
+	function clientBypass.removeIntroClones()
+		if st.disableMenuReopen ~= true then
+			return 0
+		end
+		local lp = Plrs.LocalPlayer
+		local ps = lp and ffc(lp, "PlayerScripts")
+		if not ps then
+			return 0
+		end
+		local n = 0
+		for _, obj in kids(ps) do
+			if obj.Name == "IntroHandler" then
+				n += 1
+				safeDestroy(obj)
+			end
+		end
+		return n
+	end
+
+	local function onNewDesc(obj)
+		if st.promptBypass == true and obj:IsA("ProximityPrompt") then
+			task.defer(clientBypass.unlockPrompt, obj)
+		end
+		if obj:IsA("Sound") and clientBypass.shouldMuteSound(obj) then
+			task.defer(clientBypass.muteSound, obj)
+		end
+		if st.knownPromptBypass == true and obj:IsA("ProximityPrompt") then
+			task.defer(clientBypass.applyKnownGamePrompts)
+		end
+		if (st.hideScrapPopups == true or st.hideTrapGui == true or st.hideLocationPopups == true) and (obj:IsA("ScreenGui") or obj:IsA("GuiObject")) then
+			task.defer(clientBypass.applyClientPopupBypasses)
+		end
+		if (obj:IsA("Light") or obj:IsA("BasePart")) and (st.flashlightNoShadows == true or st.flashlightBoost == true) then
+			task.defer(clientBypass.applyLightToolBypasses)
+		end
+	end
+
+	bind(Ws.DescendantAdded, onNewDesc)
+	local curPg = clientBypass.getPlayerGui()
+	if curPg then
+		bind(curPg.DescendantAdded, onNewDesc)
+	end
+
+	bind(Ws:GetPropertyChangedSignal("CurrentCamera"), function()
+		clientBypass.applyMotionBlurBypass()
+		clientBypass.applyMenuFxBypass()
+		clientBypass.applyDeathFxBypass()
+	end)
+
+
+
+
+	local function openhousedoor()
+		for i = 1,1 do
+			local lastpos = Plrs.LocalPlayer.Character:WaitForChild("HumanoidRootPart").CFrame
+
+			SET_HRP_CFRAME(Ws.Map.SafeHouse.Door.Door.CFrame+Vector3.new(0,-7,0))
+			wait()
+			SET_HRP_ANCHORED(true)
+			wait(.4)
+			local ohString1 = "Door"
+
+			workspace.Map.SafeHouse.Door.RemoteEvent:FireServer(ohString1)
+			wait(.4)
+			SET_HRP_CFRAME(lastpos)
+			wait()
+			SET_HRP_ANCHORED(false)
+			wait(.4)
+		end
+	end
+
+	local function MOUSETP()
+		local mouse = Plrs.LocalPlayer:GetMouse()
+
+		local tweenService = Tws
+		local tweenInfo = TweenInfo.new(1, Enum.EasingStyle.Linear, Enum.EasingDirection.In, 0, false, 0)
+		local part = Plrs.LocalPlayer.Character:WaitForChild("HumanoidRootPart")
+		local goal = {CFrame = CFrame.new(mouse.Hit.Position)}
+		local tween = __lt.cm("TweenService", "Create", part, tweenInfo, goal)
+		tween:Play()
+	end
+
+	local function opencrate()
+		local ohString1 = "Open"
+		local ohBoolean2 = true
+
+		Rep.SupplyClientEvent:FireServer(ohString1, ohBoolean2)
+	end
+
+	local function dropRoot()
+		local debris = ffc(Ws, "Debris")
+		if not debris then
+			return nil
+		end
+		return ffc(debris, "SupplyCrates") or ffc(debris, "SupplyCreates")
+	end
+
+	local function isDropBox(v)
+		return v and v.Name == "Box" and v:IsA("Model")
+	end
+
+	local function eachDrop(fn)
+		local root = dropRoot()
+		if not root or type(fn) ~= "function" then
+			return 0
+		end
+		local n = 0
+		local hit = {}
+		local function run(box)
+			if box and not hit[box] and isDropBox(box) then
+				hit[box] = true
+				n += 1
+				pcall(fn, box)
+			end
+		end
+		run(ffc(root, "Box"))
+		for _, box in kids(root) do
+			run(box)
+		end
+		if n <= 0 then
+			for _, box in desc(root) do
+				run(box)
+			end
+		end
+		return n
+	end
+
+	local function eachTrap(fn)
+		local debris = ffc(Ws, "Debris")
+		local traps = debris and ffc(debris, "Traps")
+		if not traps or type(fn) ~= "function" then
+			return 0
+		end
+		local n = 0
+		for _, trap in kids(traps) do
+			if trap and trap.Name == "RakeTrapModel" then
+				n += 1
+				pcall(fn, trap)
+			end
+		end
+		return n
+	end
+
+	local function fastPrompt(prompt, attrs)
+		if not prompt then
+			return false
+		end
+		local ok = pcall(function()
+			if not prompt:IsA("ProximityPrompt") then
+				error("bad prompt")
+			end
+			clientBypass.cachePromptHold(prompt)
+			local keepHold = clientBypass.isHoldRequiredPrompt(prompt)
+			local dist = math.clamp(tonumber(st.promptDistance) or 25, 5, 100)
+			prompt.Enabled = true
+			if keepHold then
+				clientBypass.restorePromptHold(prompt)
+			else
+				prompt.HoldDuration = 0
+			end
+			prompt.RequiresLineOfSight = false
+			prompt.ClickablePrompt = true
+			prompt.MaxActivationDistance = dist
+			prompt:SetAttribute("ODistance", dist)
+		end)
+		if ok and attrs == true then
+			pcall(function()
+				prompt:SetAttribute("Busy", false)
+				prompt:SetAttribute("Busy2", false)
+				prompt:SetAttribute("Unavailable", false)
+				prompt:SetAttribute("Unavailable2", false)
+			end)
+		end
+		return ok
+	end
+
+	local function fastDrop(box)
+		local gui = ffc(box, "GUIPart")
+		local ok = fastPrompt(gui and ffca(gui, "ProximityPrompt"), true)
+		if not ok then
+			fastPrompt(ffca(box, "ProximityPrompt"), true)
+		end
+		local unlock = ffc(box, "UnlockValue")
+		if unlock then
+			unlock.Value = 100
+		end
+	end
+
+	local function trapPrompt(prompt)
+		if fastPrompt(prompt, false) then
+			return true
+		end
+		return false
+	end
+
+	local function fastTrap(trap)
+		local hit = ffcr(trap, "HitBox")
+		local att = hit and ffcr(hit, "Attachment")
+		local prompt = att and ffca(att, "ProximityPrompt")
+		if not prompt and trap then
+			prompt = ffca(trap, "ProximityPrompt")
+		end
+		trapPrompt(prompt)
+	end
+
+	clientBypass.findTool = function(name)
+		name = tostring(name or ""):lower()
+		local lp = Plrs.LocalPlayer
+		local ch = getChar()
+		for _, root in { ch, lp and ffc(lp, "Backpack") } do
+			if root then
+				for _, obj in kids(root) do
+					if obj:IsA("Tool") and obj.Name:lower():find(name, 1, true) then
+						return obj
+					end
+				end
+			end
+		end
+		return nil
+	end
+
+	clientBypass.equipTool = function(tool)
+		if not tool or not tool:IsA("Tool") then
+			return false
+		end
+		local ch = getChar()
+		if ch and tool:IsDescendantOf(ch) then
+			return true
+		end
+		if st.healAutoEquip ~= true then
+			return false
+		end
+		local hum = getHum()
+		if not hum then
+			return false
+		end
+		return pcall(function()
+			hum:EquipTool(tool)
+		end)
+	end
+
+	clientBypass.firstAidReady = function(tool)
+		if not tool or not tool.Parent then
+			return false
+		end
+		if valOf(ffc(tool, "Done"), false) == true or valOf(ffc(tool, "Doing"), false) == true then
+			return false
+		end
+		local uses = ffc(tool, "Uses")
+		if uses and tonumber(valOf(uses, 1)) and tonumber(valOf(uses, 1)) <= 0 then
+			return false
+		end
+		return true
+	end
+
+	clientBypass.fireFirstAid = function(target)
+		local tool = clientBypass.findTool("firstaid") or clientBypass.findTool("first aid")
+		if not clientBypass.firstAidReady(tool) then
+			return false
+		end
+		clientBypass.equipTool(tool)
+		local ev = ffc(tool, "RemoteEvent")
+		if ev and ev:IsA("RemoteEvent") then
+			if target then
+				return pcall(function()
+					ev:FireServer("HealPlrStart", target)
+				end)
+			end
+			return pcall(function()
+				ev:FireServer("YourselfStart")
+			end)
+		end
+		if not target then
+			return pcall(function()
+				tool:Activate()
+			end)
+		end
+		return false
+	end
+
+	clientBypass.getHealTarget = function()
+		local ch = getChar()
+		local root = GET_HRP()
+		if not ch or not root then
+			return nil
+		end
+		local best, dist = nil, 5
+		for _, plr in kids(Plrs) do
+			local tc = plr.Character
+			if tc and tc ~= ch then
+				local hum = ffc(tc, "Humanoid")
+				local hrp = ffc(tc, "HumanoidRootPart")
+				if hum and hrp and hum.Health > 0 and hum.MaxHealth > 0 and hum.Health < hum.MaxHealth then
+					local pct = hum.Health / hum.MaxHealth * 100
+					local mag = (root.Position - hrp.Position).Magnitude
+					if pct <= (tonumber(st.healPlayerAt) or 60) and mag < dist then
+						dist = mag
+						best = tc
+					end
+				end
+			end
+		end
+		return best
+	end
+
+	clientBypass.autoFirstAid = function()
+		if st.autoHealSelf ~= true and st.autoHealPlayers ~= true then
+			return false
+		end
+		if time() - (clientBypass.lastHealT or 0) < 7.5 then
+			return false
+		end
+		local hum = getHum()
+		if not hum or hum.Health <= 0 or hum.MaxHealth <= 0 then
+			return false
+		end
+		if st.autoHealSelf == true and hum.Health < hum.MaxHealth and hum.Health / hum.MaxHealth * 100 <= (tonumber(st.healSelfAt) or 55) then
+			if clientBypass.fireFirstAid(nil) then
+				clientBypass.lastHealT = time()
+				return true
+			end
+		end
+		if st.autoHealPlayers == true then
+			local target = clientBypass.getHealTarget()
+			if target and clientBypass.fireFirstAid(target) then
+				clientBypass.lastHealT = time()
+				return true
+			end
+		end
+		return false
+	end
+
+	clientBypass.autoSupplyCollect = function()
+		if st.autoSupplyCollect ~= true then
+			return 0
+		end
+		local ev = ffc(Rep, "SupplyClientEvent")
+		local crates = ffc(ffc(Ws, "Debris"), "SupplyCrates")
+		if not ev or not crates then
+			return 0
+		end
+		local n = 0
+		for _, box in kids(crates) do
+			if box.Name == "Box" then
+				fastDrop(box)
+				local items = ffc(box, "Items_Folder")
+				for _, item in kids(items) do
+					if valOf(ffc(item, "Taken"), false) ~= true then
+						pcall(function()
+							ev:FireServer("Collect", item.Name)
+						end)
+						n += 1
+					end
+				end
+			end
+		end
+		return n
+	end
+
+	clientBypass.applyMonitorStaticBypass = function()
+		if st.noMonitorStatic ~= true then
+			return 0
+		end
+		local n = 0
+		local pg = clientBypass.getPlayerGui()
+		for _, root in { pg, getChar() } do
+			for _, obj in desc(root) do
+				if obj:IsA("Sound") and obj.Name:lower():find("static", 1, true) then
+					pcall(function()
+						obj.Volume = 0
+						obj.Playing = false
+					end)
+					n += 1
+				elseif obj:IsA("ImageLabel") and obj.Name:lower():find("static", 1, true) then
+					pcall(function()
+						obj.ImageTransparency = 1
+					end)
+					n += 1
+				end
+			end
+		end
+		return n
+	end
+
+	local function fastDoorLever()
+		local map = ffc(Ws, "Map")
+		local safe = map and ffc(map, "SafeHouse")
+		local door = safe and ffc(safe, "Door")
+		local lever = door and ffc(door, "DoorLever")
+		local gui = lever and ffcr(lever, "DoorGUIPart")
+		local prompt = gui and ffca(gui, "ProximityPrompt") or ffca(lever, "ProximityPrompt")
+		if prompt then
+			pcall(function()
+				prompt.RequiresLineOfSight = false
+				prompt.MaxActivationDistance = 10
+			end)
+		end
+	end
+
+local function aigoto(pos)
+	local path = __lt.cm("PathfindingService", "CreatePath")
+
+	path:ComputeAsync(Plrs.LocalPlayer.Character:WaitForChild("HumanoidRootPart").Position, pos)
+
+	local waypoints = path:GetWaypoints()
+
+	for i, v in ipairs(waypoints) do
+		getHum():MoveTo(v.Position)
+	end
+end
+
+
+
+	clientBypass.powerRepairBusy = false
+
+	clientBypass.repairPowerStation = function()
+		if clientBypass.powerRepairBusy == true then
+			return false, "busy"
+		end
+		local map = ffc(Ws, "Map")
+		local powerStation = map and ffc(map, "PowerStation")
+		local station = powerStation and ffc(powerStation, "StationFolder")
+		local guiPart = station and ffc(station, "StationGUIPart")
+		local prompt = guiPart and ffc(guiPart, "ProximityPrompt")
+		local ev = station and ffc(station, "RemoteEvent")
+		local progress = station and ffc(station, "Progress")
+		local stationPower = ffc(Rep, "StationPower")
+		local root = GET_HRP()
+		local hum = getHum()
+		local ch = getChar()
+		if not (station and guiPart and prompt and ev and root and hum and ch) then
+			return false, "missing"
+		end
+		if stationPower and stationPower.Value == true then
+			return true, "powered"
+		end
+
+		clientBypass.powerRepairBusy = true
+		local oldCf = root.CFrame
+		local oldAnchored = root.Anchored
+		local ok, result = pcall(function()
+			local useToolbox = false
+			if st.powerRestoreUseToolbox == true then
+				local toolbox = clientBypass.findTool("toolbox")
+				if toolbox then
+					pcall(function() hum:EquipTool(toolbox) end)
+					task.wait(0.15)
+					useToolbox = toolbox.Parent == ch
+				end
+			end
+
+			root.CFrame = guiPart.CFrame * CFrame.new(0, 0, 3)
+			root.AssemblyLinearVelocity = Vector3.zero
+			root.AssemblyAngularVelocity = Vector3.zero
+			task.wait(0.2)
+			root.Anchored = true
+			ev:FireServer("StationStart", useToolbox)
+
+			local activate = tonumber(prompt:GetAttribute("ActivateTime")) or 30
+			local deadline = time() + math.max(activate + 8, 35)
+			local success = false
+			while AllowRunService == true and root.Parent and time() < deadline do
+				if stationPower and stationPower.Value == true then
+					success = true
+					break
+				end
+				if progress and tonumber(progress.Value) and progress.Value >= 100 then
+					success = true
+					break
+				end
+				task.wait(0.25)
+			end
+			if not success then
+				pcall(function() ev:FireServer("StationCancel") end)
+			end
+			return success
+		end)
+
+		pcall(function()
+			root.Anchored = oldAnchored
+			root.CFrame = oldCf
+			root.AssemblyLinearVelocity = Vector3.zero
+			root.AssemblyAngularVelocity = Vector3.zero
+		end)
+		clientBypass.powerRepairBusy = false
+		return ok and result == true, ok and (result == true and "done" or "timeout") or tostring(result)
+	end
+
+	clientBypass.autoRestorePower = function()
+		if st.autoPowerRestore ~= true or clientBypass.powerRepairBusy == true then
+			return false
+		end
+		local stationPower = ffc(Rep, "StationPower")
+		if not stationPower or stationPower.Value == true then
+			return false
+		end
+		task.spawn(function()
+			clientBypass.repairPowerStation()
+		end)
+		return true
+	end
+
+
+
+	local function airdropchams(mode)
+		if tostring(mode) == "Enable" then
+			eachDrop(function(box)
+				if not ffc(box, "SleepyDropChams") then
+					local chams = Instance.new("Highlight")
+					chams.FillColor = Color3.new(0.317647, 1, 0)
+					chams.OutlineColor = Color3.new(0, 1, 0.250980)
+					chams.Parent = box
+					chams.Adornee = box
+					chams.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+					chams.OutlineTransparency = 0
+					chams.FillTransparency = 1
+					chams.Name = "SleepyDropChams"
+				end
+			end)
+		elseif tostring(mode) == "Disable" then
+			local root = dropRoot()
+			for _, v in desc(root) do
+				if v.Name == "SleepyDropChams" then
+					v:Destroy()
+				end
+			end
+		end
+
+	end
+
+	local function rakechams()
+		local rk = ffcr(Ws, "Rake")
+		if rk then
+			if ffcr(rk, "SleepyRakeChams") then
+
+			else
+				local chams = Instance.new("Highlight")
+				chams.FillColor = Color3.new(170, 0, 0)
+				chams.OutlineColor = Color3.fromRGB(255,255,255)
+				chams.Parent = rk
+				chams.Adornee = rk
+				chams.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+				chams.OutlineTransparency = .9
+				chams.FillTransparency = 0.5
+				chams.Name = "SleepyRakeChams"
+			end
+
+		end
+
+	end
+
+	local function disablerakechams()
+		local rk = ffcr(Ws, "Rake")
+		local chams = ffcr(rk, "SleepyRakeChams")
+		safeDestroy(chams)
+	end
+
+
+
+	clientBypass.buildUi = function()
+	local RunService = ClonedService("RunService")
+	local InputService = ClonedService("UserInputService")
+	local FreeCamPart
+
+
+
+
+
+	pcall(function() genv.RakeGui = true end)
+
+
+	local WindUI = loadstring(game:HttpGet("https://raw.githubusercontent.com/WasKKal/OnlyJumpToOther/refs/heads/main/WindQW.lua"))()
+	local canCfg = fileApi
+	local UI = {}
+	local uiNum = 0
+
+	local function uiWrap(obj)
+		return setmetatable({ _obj = obj }, {
+			__index = function(t, k)
+				if k == "Set" then
+					return function(_, v)
+						local o = rawget(t, "_obj")
+						pcall(function()
+							if o and o.SetValue then
+								o:SetValue(v)
+							elseif o and o.Set then
+								o:Set(v)
+							elseif o and o.SetText then
+								o:SetText(tostring(v))
+							end
+						end)
+					end
+				end
+				if k == "SetText" then
+					return function(_, v)
+						local o = rawget(t, "_obj")
+						pcall(function()
+							if o and o.SetText then
+								o:SetText(tostring(v))
+							elseif o and o.SetDesc then
+								o:SetDesc(tostring(v))
+							elseif o and o.Set then
+								o:Set(tostring(v))
+							end
+						end)
+					end
+				end
+				local o = rawget(t, "_obj")
+				local v = o and o[k]
+				if type(v) == "function" then
+					return function(_, ...)
+						return v(o, ...)
+					end
+				end
+				return v
+			end,
+		})
+	end
+
+	local function makeUiSection(tab)
+		local t = { __tab = tab }
+
+		function t:CreateLabel(text)
+			local ok, obj = pcall(function()
+				return tab:Paragraph({ Title = tostring(text or ""), Desc = "" })
+			end)
+			return uiWrap(ok and obj or nil)
+		end
+
+		function t:CreateDivider()
+			local ok, obj = pcall(function()
+				return tab:Divider()
+			end)
+			return uiWrap(ok and obj or nil)
+		end
+
+		function t:CreateButton(info)
+			info = type(info) == "table" and info or { Name = tostring(info or "按钮") }
+			local text = tostring(info.Name or info.Text or "按钮")
+			local cb = info.Callback or info.Func
+			local obj
+			pcall(function()
+				obj = tab:Button({
+					Title = text,
+					Desc = info.Desc or info.Description,
+					Callback = function()
+						if cb then
+							cb()
+						end
+					end,
+				})
+			end)
+			return uiWrap(obj)
+		end
+
+		function t:CreateToggle(info)
+			info = type(info) == "table" and info or {}
+			local cb = info.Callback
+			local obj
+			local ready = false
+			pcall(function()
+				obj = tab:Toggle({
+					Title = tostring(info.Name or info.Text or "开关"),
+					Desc = info.Desc or info.Description,
+					Value = info.CurrentValue == true or info.Default == true,
+					Callback = function(v)
+						if ready and cb then
+							cb(v)
+						end
+					end,
+				})
+			end)
+			ready = true
+			return uiWrap(obj)
+		end
+
+		function t:CreateSlider(info)
+			info = type(info) == "table" and info or {}
+			local range = type(info.Range) == "table" and info.Range or { 0, 100 }
+			local min = tonumber(range[1]) or 0
+			local max = tonumber(range[2]) or 100
+			local cb = info.Callback
+			local obj
+			local ready = false
+			pcall(function()
+				obj = tab:Slider({
+					Title = tostring(info.Name or info.Text or "滑块"),
+					Desc = info.Desc or info.Description,
+					Value = {
+						Min = min,
+						Max = max,
+						Default = tonumber(info.CurrentValue or info.Default) or min,
+					},
+					Step = tonumber(info.Increment) or 1,
+					Callback = function(v)
+						if ready and cb then
+							cb(v)
+						end
+					end,
+				})
+			end)
+			ready = true
+			return uiWrap(obj)
+		end
+
+		function t:CreateDropdown(info)
+			info = type(info) == "table" and info or {}
+			local vals = type(info.Values) == "table" and info.Values or {}
+			local cb = info.Callback
+			local def = info.CurrentOption or info.CurrentValue or info.Default or vals[1]
+			local obj
+			local ready = false
+			pcall(function()
+				obj = tab:Dropdown({
+					Title = tostring(info.Name or info.Text or "下拉菜单"),
+					Desc = info.Desc or info.Description,
+					Values = vals,
+					Value = def,
+					Multi = info.Multi == true,
+					Callback = function(v)
+						if ready and cb then
+							cb(v)
+						end
+					end,
+				})
+			end)
+			ready = true
+			return uiWrap(obj)
+		end
+
+		function t:CreateKeybind(info)
+			info = type(info) == "table" and info or {}
+			local cb = info.Callback
+			local obj
+			pcall(function()
+				obj = tab:Keybind({
+					Title = tostring(info.Name or "按键绑定"),
+					Desc = info.Desc or info.Description,
+					Value = tostring(info.CurrentKeybind or info.Default or "R"),
+					Callback = function(...)
+						if cb then
+							cb(...)
+						end
+					end,
+				})
+			end)
+			return uiWrap(obj)
+		end
+
+		return t
+	end
+
+	local function makeRouter(route)
+		local t = {}
+		local lastSection = nil
+		local function pick(info)
+			local target = route(type(info) == "table" and info or { Name = tostring(info or "") })
+			local tab, sectionName
+			if type(target) == "table" and target.tab then
+				tab = target.tab
+				sectionName = target.name
+			else
+				tab = target
+				sectionName = nil
+			end
+			if sectionName and lastSection ~= sectionName then
+				tab:Section({ Title = sectionName })
+				lastSection = sectionName
+			end
+			return makeUiSection(tab)
+		end
+		function t:CreateLabel(text) return pick({ Name = tostring(text or "") }):CreateLabel(text) end
+		function t:CreateDivider() return pick({ Name = "Divider" }):CreateDivider() end
+		function t:CreateButton(info) return pick(info):CreateButton(info) end
+		function t:CreateToggle(info) return pick(info):CreateToggle(info) end
+		function t:CreateSlider(info) return pick(info):CreateSlider(info) end
+		function t:CreateDropdown(info) return pick(info):CreateDropdown(info) end
+		function t:CreateKeybind(info) return pick(info):CreateKeybind(info) end
+		return t
+	end
+
+	function UI:Notify(info)
+		info = type(info) == "table" and info or {}
+		pcall(function()
+			WindUI:Notify({
+				Title = tostring(info.Title or "通知"),
+				Content = tostring(info.Content or info.Description or info.Text or ""),
+				Duration = tonumber(info.Duration or info.Time) or 3,
+			})
+		end)
+	end
+
+	local MouseUnlockButton
+	local MouseUnlockBindName = "__RakeWindMouseUnlock"
+
+	function UI:Destroy()
+		pcall(function()
+			RunService:UnbindFromRenderStep(MouseUnlockBindName)
+		end)
+		pcall(function()
+			if MouseUnlockButton then
+				MouseUnlockButton:Destroy()
+				MouseUnlockButton = nil
+			end
+		end)
+		pcall(function()
+			Window:Destroy()
+		end)
+	end
+
+	function UI:LoadConfiguration()
+		pcall(function()
+			if Window and Window.LoadConfig then
+				Window:LoadConfig()
+			end
+		end)
+	end
+
+	local Window = WindUI:CreateWindow({
+		Title = "Stilllool [The Rake]",
+		Author = "Rake",
+		Folder = "StillloolTheRake",
+		Size = UDim2.fromOffset(760, 560),
+		Transparent = true,
+		Theme = "Light",
+		SideBarWidth = 135,
+		ScrollBarEnabled = true,
+	})
+
+Window:EditOpenButton({
+	Title = "Stilllool [The Rake]",
+	Size = UDim2.new(0, 140, 0, 32),
+	CornerRadius = UDim.new(0, 8),
+	StrokeThickness = 1.5,
+	Color = ColorSequence.new(
+		Color3.fromHex("#e0e0e0"),
+		Color3.fromHex("#8a8a8a")
+	),
+	Draggable = true,
+})
+
+
+	do
+		local ok, guiRoot = pcall(function()
+			if type(gethui) == "function" then
+				return gethui()
+			end
+			return game:GetService("CoreGui")
+		end)
+
+		if ok and guiRoot then
+			local modalButton = Instance.new("TextButton")
+			modalButton.Name = "ModalMouseUnlock"
+			modalButton.BackgroundTransparency = 1
+			modalButton.BorderSizePixel = 0
+			modalButton.Text = ""
+			modalButton.AutoButtonColor = false
+			modalButton.Active = true
+			modalButton.Selectable = false
+			modalButton.Size = UDim2.fromOffset(1, 1)
+			modalButton.Position = UDim2.fromOffset(0, 0)
+			modalButton.Modal = true
+			modalButton.Visible = false
+			modalButton.Parent = guiRoot
+			MouseUnlockButton = modalButton
+		end
+
+		pcall(function()
+			RunService:UnbindFromRenderStep(MouseUnlockBindName)
+		end)
+		RunService:BindToRenderStep(MouseUnlockBindName, Enum.RenderPriority.Camera.Value + 100, function()
+			local open = false
+			pcall(function()
+				if Window and Window.IsOpen ~= nil then
+					open = Window.IsOpen == true
+				end
+			end)
+			if MouseUnlockButton and MouseUnlockButton.Parent then
+				MouseUnlockButton.Visible = open
+			end
+			if open then
+				if InputService.MouseBehavior ~= Enum.MouseBehavior.Default then
+					InputService.MouseBehavior = Enum.MouseBehavior.Default
+				end
+				if not InputService.MouseIconEnabled then
+					InputService.MouseIconEnabled = true
+				end
+			end
+		end)
+	end
+
+	local Watermark
+	pcall(function()
+		local gui = Instance.new("ScreenGui")
+		gui.Name = "RakeWatermark"
+		gui.ResetOnSpawn = false
+		gui.DisplayOrder = 999
+		gui.Parent = game:GetService("CoreGui")
+
+		local frame = Instance.new("Frame")
+		frame.Size = UDim2.new(0, 220, 0, 80)
+		frame.Position = UDim2.new(0, 10, 0, 10)
+		frame.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+		frame.BackgroundTransparency = 0.3
+		frame.BorderSizePixel = 0
+		frame.Parent = gui
+
+		local corner = Instance.new("UICorner")
+		corner.CornerRadius = UDim.new(0, 6)
+		corner.Parent = frame
+
+		local label = Instance.new("TextLabel")
+		label.Size = UDim2.new(1, -10, 1, -10)
+		label.Position = UDim2.new(0, 5, 0, 5)
+		label.BackgroundTransparency = 1
+		label.TextColor3 = Color3.fromRGB(255, 255, 255)
+		label.TextSize = 12
+		label.Font = Enum.Font.Gotham
+		label.TextXAlignment = Enum.TextXAlignment.Left
+		label.TextYAlignment = Enum.TextYAlignment.Top
+		label.Text = "Stilllool. The Rake"
+		label.Parent = frame
+
+		Watermark = {
+			SetText = function(_, txt)
+				label.Text = tostring(txt)
+			end,
+			SetVisibility = function(_, v)
+				gui.Enabled = v == true
+			end,
+		}
+	end)
+
+	local PlayerPage = Window:Tab({ Title = "玩家", Icon = "user" })
+	local VisualsPage = Window:Tab({ Title = "视觉", Icon = "eye" })
+	local AutomationPage = Window:Tab({ Title = "自动化", Icon = "bot" })
+	local CombatPage = Window:Tab({ Title = "战斗", Icon = "swords" })
+	local ClientPage = Window:Tab({ Title = "客户端", Icon = "monitor" })
+	local RadioPage = Window:Tab({ Title = "无线电", Icon = "radio" })
+	local ScriptPage = Window:Tab({ Title = "脚本", Icon = "code" })
+
+	local PlayerMovement = { tab = PlayerPage, name = "移动与视角" }
+	local PlayerSurvival = { tab = PlayerPage, name = "生存" }
+	local PlayerHealing = { tab = PlayerPage, name = "治疗" }
+
+	local VisualWorld = { tab = VisualsPage, name = "世界与光照" }
+	local VisualCamera = { tab = VisualsPage, name = "视角与特效" }
+	local VisualEsp = { tab = VisualsPage, name = "ESP" }
+	local VisualFlashlight = { tab = VisualsPage, name = "手电筒" }
+
+	local AutoLoot = { tab = AutomationPage, name = "战利品与目标" }
+	local AutoInteract = { tab = AutomationPage, name = "补给与交互" }
+
+	local CombatRake = { tab = CombatPage, name = "Rake 战斗" }
+	local CombatProtection = { tab = CombatPage, name = "防护" }
+
+	local ClientCore = { tab = ClientPage, name = "界面与核心" }
+	local ClientAudio = { tab = ClientPage, name = "音频" }
+	local ClientOverrides = { tab = ClientPage, name = "客户端覆盖" }
+	local ClientAdvanced = { tab = ClientPage, name = "高级 / 游戏流程" }
+
+	local RadioLogSection = { tab = RadioPage, name = "无线电日志" }
+	local RadioSettingsSection = { tab = RadioPage, name = "无线电设置" }
+
+	local ScriptEsp = { tab = ScriptPage, name = "ESP 高级" }
+
+	local function infoName(info)
+		return tostring((type(info) == "table" and (info.Flag or info.Name or info.Text)) or "")
+	end
+
+	local PlayerTab = makeRouter(function(info)
+		local n = infoName(info)
+		if n:find("FirstAid", 1, true) or n:find("Heal", 1, true) then
+			return PlayerHealing
+		elseif n:find("Stamina", 1, true) or n:find("Night Vision", 1, true) then
+			return PlayerSurvival
+		end
+		return PlayerMovement
+	end)
+
+	local ClientTab = makeRouter(function(info)
+		local n = infoName(info)
+		if n:find("ESP", 1, true) or n:find("Chams", 1, true) or n == "Show Distance Travelled" then
+			return VisualEsp
+		elseif n:find("Flashlight", 1, true) then
+			return VisualFlashlight
+		elseif n == "No Fog" or n == "Fullbright" or n == "Disable Shadows" then
+			return VisualWorld
+		elseif n:find("Camera", 1, true) or n:find("Visual FX", 1, true) or n:find("Motion Blur", 1, true) or n:find("Static", 1, true) then
+			return VisualCamera
+		elseif n:sub(1, 5) == "Mute " then
+			return ClientAudio
+		elseif n == "No Downed / Ragdoll" or n == "No Movement Lock" or n == "No Trap Lock" then
+			return CombatProtection
+		elseif n == "Force PC Device" or n == "Freeze Look Angles" or n == "Force Nametags" or n == "Force Sixth Sense" then
+			return ClientOverrides
+		end
+		return ClientCore
+	end)
+
+	local ExploitsTab = makeRouter(function(info)
+		local n = infoName(info)
+		if n:find("Killaura", 1, true) or n:find("KillAura", 1, true) then
+			return CombatRake
+		elseif n:find("Scrap", 1, true) or n:find("Power", 1, true) or n:find("Flaregun", 1, true) then
+			return AutoLoot
+		elseif n:find("SupplyDrop", 1, true) or n:find("Prompt", 1, true) or n:find("RakeTrap", 1, true) then
+			return AutoInteract
+		elseif n:find("StartRemote", 1, true) then
+			return ClientAdvanced
+		end
+		return AutoInteract
+	end)
+
+	local SettingsTab = makeRouter(function(info)
+		local n = infoName(info)
+		if n:find("ESP", 1, true) then
+			return ScriptEsp
+		end
+		return ClientAdvanced
+	end)
+
+	RadioPage:Section({ Title = "无线电日志" })
+	local radioLines = {}
+	local radioEmptyText = "等待无线电消息..."
+	local radioMaxRows = 24
+	local radioSounds = {
+		"rbxassetid://103856279160788",
+		"rbxassetid://88017109520003",
+		"rbxassetid://131718170793766",
+		"rbxassetid://103338553714052",
+	}
+
+	local radioLog
+	pcall(function()
+		radioLog = RadioPage:Paragraph({
+			Title = "消息",
+			Desc = radioEmptyText,
+		})
+	end)
+
+	RadioPage:Section({ Title = "无线电设置" })
+	local RadioTab = makeUiSection(RadioPage)
+
+	local function radioName(sender)
+		if typeof(sender) == "Instance" and sender:IsA("Player") then
+			local username = tostring(sender.Name or "Unknown")
+			local display = tostring(sender.DisplayName or username)
+			if display == username then
+				return "@" .. username
+			end
+			return display .. " (@" .. username .. ")"
+		end
+		return tostring(sender or "Unknown")
+	end
+
+	local function radioStoredName(name)
+		local username = tostring(name or "")
+		username = username:gsub("%s*:+%s*$", "")
+		if username == "" then
+			return ""
+		end
+		local player = ffc(Plrs, username)
+		if player and player:IsA("Player") then
+			return radioName(player)
+		end
+		return username
+	end
+
+	local function refreshRadioLog()
+		local text = #radioLines > 0 and table.concat(radioLines, "\n") or radioEmptyText
+		pcall(function()
+			if radioLog and radioLog.SetText then
+				radioLog:SetText(text)
+			end
+		end)
+	end
+
+	local function clearRadioMessages()
+		table.clear(radioLines)
+		refreshRadioLog()
+	end
+
+	local function pushRadioLine(name, message)
+		name = tostring(name or "")
+		message = tostring(message or "")
+		if name == "" and message == "" then
+			return
+		end
+		radioLines[#radioLines + 1] = name .. ": " .. message
+		while #radioLines > radioMaxRows do
+			table.remove(radioLines, 1)
+		end
+		refreshRadioLog()
+	end
+
+	local function pushRadioMessage(sender, message)
+		pushRadioLine(radioName(sender), message)
+	end
+
+	local function notifyRadioMessage(sender, message)
+		if st.radioNotifications ~= true then
+			return
+		end
+		UI:Notify({
+			Title = "无线电",
+			Content = radioName(sender) .. ": " .. tostring(message or ""),
+			Duration = 4,
+		})
+	end
+
+	local function playRadioSound()
+		if st.radioSounds ~= true or #radioSounds <= 0 then
+			return
+		end
+		local sound = Instance.new("Sound")
+		sound.Name = "RakeRadioMessageSound"
+		sound.SoundId = radioSounds[math.random(1, #radioSounds)]
+		sound.Volume = 1
+		sound.Parent = Ws
+		sound.Ended:Connect(function()
+			safeDestroy(sound)
+		end)
+		pcall(function()
+			sound:Play()
+		end)
+		if type(task) == "table" and type(task.delay) == "function" then
+			task.delay(8, function()
+				safeDestroy(sound)
+			end)
+		end
+	end
+
+	local function getRadioValue(line, valueName)
+		local value = line and ffc(line, valueName)
+		return tostring(valOf(value, "") or "")
+	end
+
+	local function hydrateRadioChannel()
+		local channel = ffc(Rep, "RadioChannel")
+		if not channel then
+			return
+		end
+		clearRadioMessages()
+		for i = 1, 7 do
+			local line = ffc(channel, "Line" .. tostring(i))
+			local name = getRadioValue(line, "Name")
+			local msg = getRadioValue(line, "Msg")
+			if name ~= "" or msg ~= "" then
+				pushRadioLine(radioStoredName(name), msg)
+			end
+		end
+	end
+
+	RadioTab:CreateToggle({
+		Name = "消息音效",
+		CurrentValue = st.radioSounds == true,
+		Flag = "RadioSounds",
+		Callback = function(v)
+			st.radioSounds = v == true
+			cfgSet("radioSounds", st.radioSounds)
+		end,
+	})
+
+	RadioTab:CreateToggle({
+		Name = "消息通知",
+		CurrentValue = st.radioNotifications == true,
+		Flag = "RadioNotifications",
+		Callback = function(v)
+			st.radioNotifications = v == true
+			cfgSet("radioNotifications", st.radioNotifications)
+		end,
+	})
+
+	RadioTab:CreateButton({
+		Name = "清空无线电日志",
+		Callback = clearRadioMessages,
+	})
+
+	local radioRemote
+	local function attachRadioRemote(remote)
+		if radioRemote == remote or not remote or not remote:IsA("RemoteEvent") then
+			return
+		end
+		radioRemote = remote
+		bind(remote.OnClientEvent, function(sender, message)
+			pushRadioMessage(sender, message)
+			playRadioSound()
+			notifyRadioMessage(sender, message)
+		end)
+	end
+
+	attachRadioRemote(ffc(Rep, "RadioChatEvent"))
+	bind(Rep.ChildAdded, function(child)
+		if child.Name == "RadioChatEvent" then
+			attachRadioRemote(child)
+		end
+	end)
+	hydrateRadioChannel()
+	bind(Rep.ChildAdded, function(child)
+		if child.Name == "RadioChannel" then
+			hydrateRadioChannel()
+		end
+	end)
+
+	local infoTgt = "Rake 的目标：?"
+	local infoTime = "白天剩余时间：?"
+	local infoPower = "电力：?"
+
+	local function fmtTime(v)
+		v = math.max(0, math.floor(tonumber(v) or 0))
+		local h = math.floor(v / 3600)
+		local m = math.floor((v % 3600) / 60)
+		local s = v % 60
+		if h > 0 then
+			return string.format("%d:%02d:%02d", h, m, s)
+		end
+		return string.format("%d:%02d", m, s)
+	end
+
+	local function fmtPower(v)
+		local pct = math.max(0, (tonumber(v) or 1000) / 10)
+		if pct % 1 == 0 then
+			return tostring(math.floor(pct))
+		end
+		return string.format("%.1f", pct)
+	end
+
+	local function infoText()
+		return "Stilllool The Rake | " .. tostring(Me.LocalPlayer.Name) .. "\n" .. infoTgt .. "\n" .. infoTime .. "\n" .. infoPower
+	end
+
+	local function setBubbleVisible(v)
+		if Watermark and type(Watermark.SetVisibility) == "function" then
+			pcall(Watermark.SetVisibility, Watermark, v == true)
+		end
+	end
+
+	local function syncBubble()
+		if Watermark and type(Watermark.SetText) == "function" then
+			pcall(Watermark.SetText, Watermark, infoText())
+		end
+	end
+
+	local function setInfoTarget(txt)
+		local v = tostring(txt or "Rake 的目标：?")
+		if v == infoTgt then
+			return
+		end
+		infoTgt = v
+		syncBubble()
+	end
+
+	local function setInfoTime(txt)
+		local v = tostring(txt or "白天剩余时间：?")
+		if v == infoTime then
+			return
+		end
+		infoTime = v
+		syncBubble()
+	end
+
+	local function setInfoPower(txt)
+		local v = tostring(txt or "电力：?")
+		if v == infoPower then
+			return
+		end
+		infoPower = v
+		syncBubble()
+	end
+
+	task.defer(function()
+		syncBubble()
+		setBubbleVisible(st.infoBubble)
+	end)
+
+
+	local function saveNow()
+		saveDirty = false
+		return saveCfg(saved)
+	end
+
+	local function eachEspDraw(fn)
+		if not esp then
+			return
+		end
+		for _, it in { esp.flare, esp.rake } do
+			if it and it.d then
+				pcall(fn, it.d)
+			end
+		end
+		for _, bucket in { esp.players, esp.drops, esp.scraps } do
+			for _, it in bucket do
+				if it and it.d then
+					pcall(fn, it.d)
+				end
+			end
+		end
+		for _, d in esp.locs do
+			if d then
+				pcall(fn, d)
+			end
+		end
+	end
+
+	local function refreshEspStyle()
+		eachEspDraw(function(d)
+			d.Size = st.espSize
+			d.Outline = false
+		end)
+	end
+
+	pcall(function()
+		setBubbleVisible(st.infoBubble)
+	end)
+
+	SettingsTab:CreateToggle({
+		Name = "Adonis 绕过",
+		CurrentValue = st.adonisBypass,
+		Flag = "Settings_AdonisBypass",
+		Callback = function(v)
+			st.adonisBypass = v == true
+			_G.RakeAdonisBypass = st.adonisBypass
+			cfgSet("adonisBypass", st.adonisBypass)
+			if st.adonisBypass then
+				task.spawn(function()
+					runAdonisBypass(true)
+				end)
+			end
+		end,
+	})
+
+	SettingsTab:CreateSlider({
+		Name = "ESP 文字大小",
+		Range = {8, 24},
+		Increment = 1,
+		CurrentValue = st.espSize,
+		Flag = "Settings_ESPTextSize",
+		Callback = function(v)
+			st.espSize = math.clamp(tonumber(v) or 12, 8, 24)
+			cfgSet("espSize", st.espSize)
+			refreshEspStyle()
+		end,
+	})
+
+	SettingsTab:CreateSlider({
+		Name = "ESP 扫描延迟",
+		Range = {0.2, 3},
+		Increment = 0.05,
+		CurrentValue = st.espScan,
+		Flag = "Settings_ESPScanDelay",
+		Callback = function(v)
+			st.espScan = math.clamp(tonumber(v) or 0.75, 0.2, 3)
+			cfgSet("espScan", st.espScan)
+		end,
+	})
+
+	SettingsTab:CreateSlider({
+		Name = "ESP 最大距离",
+		Range = {0, 5000},
+		Increment = 50,
+		CurrentValue = st.espMax,
+		Flag = "Settings_ESPMaxDistance",
+		Callback = function(v)
+			st.espMax = math.clamp(tonumber(v) or 0, 0, 5000)
+			cfgSet("espMax", st.espMax)
+		end,
+	})
+
+	SettingsTab:CreateToggle({
+		Name = "ESP 高亮",
+		CurrentValue = st.espChams,
+		Flag = "Settings_ESPHighlights",
+		Callback = function(v)
+			st.espChams = v == true
+			cfgSet("espChams", st.espChams)
+			if cleanupEsp then
+				cleanupEsp("flare")
+				cleanupEsp("rake")
+				cleanupEsp("players")
+				cleanupEsp("scraps")
+				cleanupEsp("traps")
+			end
+		end,
+	})
+
+	SettingsTab:CreateToggle({
+		Name = "ESP 显示距离",
+		CurrentValue = st.espDist,
+		Flag = "Settings_ESPShowDistance",
+		Callback = function(v)
+			st.espDist = v == true
+			cfgSet("espDist", st.espDist)
+		end,
+	})
+
+	SettingsTab:CreateDivider()
+
+	SettingsTab:CreateButton({
+		Name = "卸载脚本",
+		Callback = function()
+			if typeof(DestroyUI) == "function" then
+				DestroyUI()
+				return
+			end
+			AllowRunService = false
+			saveNow()
+			pcall(function()
+				if cleanupEsp then
+					cleanupEsp()
+				end
+			end)
+			wipeCharConns()
+			if clientBypass and clientBypass.wipeFovConns then
+				clientBypass.wipeFovConns()
+			end
+			if clientBypass and clientBypass.wipeZoomConns then
+				clientBypass.wipeZoomConns()
+			end
+			if clientBypass and clientBypass.restoreFullbright then
+				clientBypass.restoreFullbright()
+			end
+			if clientBypass and clientBypass.restoreLightToolBypasses then
+				clientBypass.restoreLightToolBypasses()
+			end
+			if clientBypass and clientBypass.restoreMovementPatches then
+				clientBypass.restoreMovementPatches()
+			end
+			if clientBypass and clientBypass.restoreDeviceSpoof then
+				clientBypass.restoreDeviceSpoof()
+			end
+			if clientBypass and clientBypass.restoreHiddenUi then
+				clientBypass.restoreHiddenUi()
+			end
+			if wipeFog then
+				wipeFog()
+			end
+			wipeConns()
+			safeDestroy(FreeCamPart)
+			safeDestroy(HidePartHightLight)
+			safeDestroy(HidePart)
+			pcall(function() genv.RakeGui = false end)
+			pcall(function() UI:Destroy() end)
+		end,
+	})
+
+	local fogCons = {}
+	local fogLast = nil
+
+	wipeFog = function()
+		for i = #fogCons, 1, -1 do
+			local c = fogCons[i]
+			if c then
+				pcall(function()
+					c:Disconnect()
+				end)
+			end
+			fogCons[i] = nil
+		end
+	end
+
+	local function bindFog(sig, fn)
+		if not sig or type(fn) ~= "function" then
+			return nil
+		end
+		local ok, c = pcall(function()
+			return sig:Connect(fn)
+		end)
+		if ok and c then
+			fogCons[#fogCons + 1] = c
+			return c
+		end
+		return nil
+	end
+
+	local function setFogOff()
+		if not Lit then
+			return
+		end
+		if fogLast == nil then
+			fogLast = tonumber(Lit.FogEnd) or 75
+		end
+		if Lit.FogEnd ~= 9e9 then
+			Lit.FogEnd = 9e9
+		end
+	end
+
+	local function watchFog()
+		wipeFog()
+		if _G.NoFog ~= true or not Lit then
+			return
+		end
+		setFogOff()
+		bindFog(Lit:GetPropertyChangedSignal("FogEnd"), function()
+			if _G.NoFog == true then
+				setFogOff()
+			end
+		end)
+	end
+
+	ClientTab:CreateToggle({
+		Name = "无雾",
+		CurrentValue = st.noFog,
+		Flag = "NoFog",
+		Callback = function(state)
+			_G.NoFog = state == true
+			st.noFog = _G.NoFog
+			cfgSet("noFog", st.noFog)
+			if _G.NoFog == true then
+				watchFog()
+			else
+				wipeFog()
+				if Lit then
+					Lit.FogEnd = fogLast or 75
+				end
+			end
+		end,
+	})
+
+	ClientTab:CreateToggle({
+		Name = "全亮",
+		CurrentValue = st.fullbright,
+		Flag = "Fullbright",
+		Callback = function(state)
+			st.fullbright = state == true
+			_G.RakeFullbright = st.fullbright
+			cfgSet("fullbright", st.fullbright)
+			if st.fullbright then
+				clientBypass.applyFullbright(true)
+			else
+				clientBypass.restoreFullbright()
+			end
+		end,
+	})
+
+	watchFog()
+
+	ClientTab:CreateToggle({
+		Name = "绕过死亡/开场特效",
+		CurrentValue = st.disableDeathFx,
+		Flag = "BypassDeathIntroFx",
+		Callback = function(state)
+			st.disableDeathFx = state == true
+			_G.RakeDisableDeathFx = st.disableDeathFx
+			cfgSet("disableDeathFx", st.disableDeathFx)
+			if st.disableDeathFx then
+				clientBypass.applyDeathFxBypass()
+				clientBypass.applyCH(true)
+			end
+		end,
+	})
+
+	ClientTab:CreateToggle({
+		Name = "禁用动态模糊",
+		CurrentValue = st.disableMotionBlur,
+		Flag = "DisableMotionBlur",
+		Callback = function(state)
+			st.disableMotionBlur = state == true
+			_G.RakeDisableMotionBlur = st.disableMotionBlur
+			cfgSet("disableMotionBlur", st.disableMotionBlur)
+			if st.disableMotionBlur then
+				clientBypass.applyMotionBlurBypass()
+				clientBypass.applyCH(true)
+			end
+		end,
+	})
+
+	ClientTab:CreateToggle({
+		Name = "禁用 Esc/菜单特效",
+		CurrentValue = st.disableMenuFx,
+		Flag = "DisableEscMenuFx",
+		Callback = function(state)
+			st.disableMenuFx = state == true
+			_G.RakeDisableMenuFx = st.disableMenuFx
+			cfgSet("disableMenuFx", st.disableMenuFx)
+			if st.disableMenuFx then
+				clientBypass.applyMenuFxBypass()
+			end
+		end,
+	})
+
+	ClientTab:CreateToggle({
+		Name = "开场绕过/恢复界面",
+		CurrentValue = st.introBypass,
+		Flag = "IntroBypassRestoreUi",
+		Callback = function(state)
+			st.introBypass = state == true
+			_G.RakeIntroBypass = st.introBypass
+			cfgSet("introBypass", st.introBypass)
+			if st.introBypass then
+				clientBypass.applyIntroBypass()
+			else
+				_G.RakeIntroBypass = false
+			end
+		end,
+	})
+
+	ClientTab:CreateButton({
+		Name = "恢复核心界面",
+		Callback = function()
+			clientBypass.restoreCoreGui()
+			UI:Notify({
+				Title = "客户端",
+				Content = "顶栏、重置、背包、玩家列表、聊天和鼠标图标已恢复。",
+				Duration = 3,
+				Image = 4483362458,
+			})
+		end,
+	})
+
+	ClientTab:CreateButton({
+		Name = "移除开场界面",
+		Callback = function()
+			local removed = clientBypass.removeIntroGui()
+			setScriptGlobal("IsLoading", nil)
+			setScriptGlobal("SLoaded", true)
+			clientBypass.restoreCoreGui()
+			UI:Notify({
+				Title = "开场",
+				Content = "已移除开场界面数量：" .. tostring(removed),
+				Duration = 3,
+				Image = 4483362458,
+			})
+		end,
+	})
+
+	ClientTab:CreateToggle({
+		Name = "禁用阴影",
+		CurrentValue = st.disableShadows,
+		Flag = "DisableShadows",
+		Callback = function(state)
+			st.disableShadows = state == true
+			_G.RakeDisableShadows = st.disableShadows
+			cfgSet("disableShadows", st.disableShadows)
+			clientBypass.fireSettingsChanged("Shadows", not st.disableShadows)
+			clientBypass.applyGameSettingOverrides()
+		end,
+	})
+
+	ClientTab:CreateToggle({
+		Name = "强制启用聊天",
+		CurrentValue = st.forceChat,
+		Flag = "ForceChatEnabled",
+		Callback = function(state)
+			st.forceChat = state == true
+			_G.RakeForceChat = st.forceChat
+			cfgSet("forceChat", st.forceChat)
+			clientBypass.fireSettingsChanged("Chat", st.forceChat)
+			clientBypass.applyGameSettingOverrides()
+		end,
+	})
+
+	ClientTab:CreateToggle({
+		Name = "静音游戏音乐",
+		CurrentValue = st.muteGameMusic,
+		Flag = "MuteGameMusic",
+		Callback = function(state)
+			st.muteGameMusic = state == true
+			cfgSet("muteGameMusic", st.muteGameMusic)
+			clientBypass.fireSettingsChanged("GameMusic", not st.muteGameMusic)
+			clientBypass.applyGameSettingOverrides()
+		end,
+	})
+
+	ClientTab:CreateToggle({
+		Name = "静音追逐音乐",
+		CurrentValue = st.muteChaseMusic,
+		Flag = "MuteChaseMusic",
+		Callback = function(state)
+			st.muteChaseMusic = state == true
+			cfgSet("muteChaseMusic", st.muteChaseMusic)
+			clientBypass.fireSettingsChanged("ChaseMusic", not st.muteChaseMusic)
+			clientBypass.applyGameSettingOverrides()
+		end,
+	})
+
+	ClientTab:CreateToggle({
+		Name = "强制显示名称标签",
+		CurrentValue = st.enableNametags,
+		Flag = "ForceNametags",
+		Callback = function(state)
+			st.enableNametags = state == true
+			_G.RakeForceNametags = st.enableNametags
+			cfgSet("enableNametags", st.enableNametags)
+			clientBypass.fireSettingsChanged("Nametags", st.enableNametags)
+			clientBypass.applyGameSettingOverrides()
+		end,
+	})
+
+	ClientTab:CreateToggle({
+		Name = "强制第六感",
+		CurrentValue = st.enableSixthSense,
+		Flag = "ForceSixthSense",
+		Callback = function(state)
+			st.enableSixthSense = state == true
+			_G.RakeForceSixthSense = st.enableSixthSense
+			cfgSet("enableSixthSense", st.enableSixthSense)
+			clientBypass.fireSettingsChanged("SixthSense", st.enableSixthSense)
+			clientBypass.applyGameSettingOverrides()
+		end,
+	})
+
+	ClientTab:CreateToggle({
+		Name = "静音移动循环",
+		CurrentValue = st.muteMovementSounds,
+		Flag = "MuteMovementSounds",
+		Callback = function(state)
+			st.muteMovementSounds = state == true
+			_G.RakeMuteMovementSounds = st.muteMovementSounds
+			cfgSet("muteMovementSounds", st.muteMovementSounds)
+			if st.muteMovementSounds then
+				clientBypass.applySoundBypasses()
+			end
+		end,
+	})
+
+	ClientTab:CreateToggle({
+		Name = "静音脚步声",
+		CurrentValue = st.muteFootsteps,
+		Flag = "MuteFootsteps",
+		Callback = function(state)
+			st.muteFootsteps = state == true
+			_G.RakeMuteFootsteps = st.muteFootsteps
+			cfgSet("muteFootsteps", st.muteFootsteps)
+			if st.muteFootsteps then
+				clientBypass.applySoundBypasses()
+			end
+		end,
+	})
+
+	ClientTab:CreateToggle({
+		Name = "静音跳跃/落地声",
+		CurrentValue = st.muteJumpLand,
+		Flag = "MuteJumpLandSounds",
+		Callback = function(state)
+			st.muteJumpLand = state == true
+			_G.RakeMuteJumpLand = st.muteJumpLand
+			cfgSet("muteJumpLand", st.muteJumpLand)
+			if st.muteJumpLand then
+				clientBypass.applySoundBypasses()
+			end
+		end,
+	})
+
+	ClientTab:CreateToggle({
+		Name = "静音水/坠落声",
+		CurrentValue = st.muteWaterFall,
+		Flag = "MuteWaterFreefallSounds",
+		Callback = function(state)
+			st.muteWaterFall = state == true
+			_G.RakeMuteWaterFall = st.muteWaterFall
+			cfgSet("muteWaterFall", st.muteWaterFall)
+			if st.muteWaterFall then
+				clientBypass.applySoundBypasses()
+			end
+		end,
+	})
+
+	ClientTab:CreateToggle({
+		Name = "静音死亡声",
+		CurrentValue = st.muteDeathSounds,
+		Flag = "MuteDeathSounds",
+		Callback = function(state)
+			st.muteDeathSounds = state == true
+			_G.RakeMuteDeathSounds = st.muteDeathSounds
+			cfgSet("muteDeathSounds", st.muteDeathSounds)
+			if st.muteDeathSounds then
+				clientBypass.applySoundBypasses()
+			end
+		end,
+	})
+
+	ClientTab:CreateToggle({
+		Name = "隐藏提示界面",
+		CurrentValue = st.hidePromptUi,
+		Flag = "HidePromptUi",
+		Callback = function(state)
+			st.hidePromptUi = state == true
+			_G.RakeHidePromptUi = st.hidePromptUi
+			cfgSet("hidePromptUi", st.hidePromptUi)
+			clientBypass.applyPromptUiBypass()
+		end,
+	})
+
+	ClientTab:CreateToggle({
+		Name = "冻结视角角度",
+		CurrentValue = st.freezeLookAngles,
+		Flag = "FreezeLookAngles",
+		Callback = function(state)
+			st.freezeLookAngles = state == true
+			_G.RakeFreezeLookAngles = st.freezeLookAngles
+			cfgSet("freezeLookAngles", st.freezeLookAngles)
+			if st.freezeLookAngles then
+				clientBypass.applyLookFreeze()
+			end
+		end,
+	})
+
+	ClientTab:CreateToggle({
+		Name = "隐藏死亡消息",
+		CurrentValue = st.hideDeathMessages,
+		Flag = "HideDeathMessages",
+		Callback = function(state)
+			st.hideDeathMessages = state == true
+			_G.RakeHideDeathMessages = st.hideDeathMessages
+			cfgSet("hideDeathMessages", st.hideDeathMessages)
+			clientBypass.applyDeathMessageBypass()
+		end,
+	})
+
+	ClientTab:CreateToggle({
+		Name = "屏蔽收藏提示",
+		CurrentValue = st.blockFavoritePrompts,
+		Flag = "BlockFavoritePrompts",
+		Callback = function(state)
+			st.blockFavoritePrompts = state == true
+			_G.RakeBlockFavoritePrompts = st.blockFavoritePrompts
+			cfgSet("blockFavoritePrompts", st.blockFavoritePrompts)
+			clientBypass.cleanupPromptModals()
+		end,
+	})
+
+	ClientTab:CreateToggle({
+		Name = "屏蔽群组提示",
+		CurrentValue = st.blockGroupPrompts,
+		Flag = "BlockGroupPrompts",
+		Callback = function(state)
+			st.blockGroupPrompts = state == true
+			_G.RakeBlockGroupPrompts = st.blockGroupPrompts
+			cfgSet("blockGroupPrompts", st.blockGroupPrompts)
+			clientBypass.cleanupPromptModals()
+		end,
+	})
+
+	ClientTab:CreateToggle({
+		Name = "强制 PC 设备",
+		CurrentValue = st.forcePcDevice,
+		Flag = "ForcePcDevice",
+		Callback = function(state)
+			st.forcePcDevice = state == true
+			cfgSet("forcePcDevice", st.forcePcDevice)
+			clientBypass.applyDeviceSpoof()
+		end,
+	})
+
+	ClientTab:CreateToggle({
+		Name = "手电筒无阴影",
+		CurrentValue = st.flashlightNoShadows,
+		Flag = "FlashlightNoShadows",
+		Callback = function(state)
+			st.flashlightNoShadows = state == true
+			_G.RakeFlashlightNoShadows = st.flashlightNoShadows
+			cfgSet("flashlightNoShadows", st.flashlightNoShadows)
+			clientBypass.applyLightToolBypasses()
+		end,
+	})
+
+	ClientTab:CreateToggle({
+		Name = "手电筒增强",
+		CurrentValue = st.flashlightBoost,
+		Flag = "FlashlightBoost",
+		Callback = function(state)
+			st.flashlightBoost = state == true
+			_G.RakeFlashlightBoost = st.flashlightBoost
+			cfgSet("flashlightBoost", st.flashlightBoost)
+			clientBypass.applyLightToolBypasses()
+		end,
+	})
+
+	ClientTab:CreateSlider({
+		Name = "手电筒亮度",
+		Range = {0, 10},
+		Increment = 0.1,
+		CurrentValue = st.flashlightBrightness,
+		Flag = "FlashlightBrightness",
+		Callback = function(v)
+			st.flashlightBrightness = math.clamp(tonumber(v) or 2, 0, 10)
+			_G.RakeFlashlightBrightness = st.flashlightBrightness
+			cfgSet("flashlightBrightness", st.flashlightBrightness)
+			clientBypass.applyLightToolBypasses()
+		end,
+	})
+
+	ClientTab:CreateSlider({
+		Name = "手电筒范围",
+		Range = {8, 120},
+		Increment = 1,
+		CurrentValue = st.flashlightRange,
+		Flag = "FlashlightRange",
+		Callback = function(v)
+			st.flashlightRange = math.clamp(tonumber(v) or 45, 8, 120)
+			_G.RakeFlashlightRange = st.flashlightRange
+			cfgSet("flashlightRange", st.flashlightRange)
+			clientBypass.applyLightToolBypasses()
+		end,
+	})
+
+	ClientTab:CreateSlider({
+		Name = "手电筒角度",
+		Range = {15, 120},
+		Increment = 1,
+		CurrentValue = st.flashlightAngle,
+		Flag = "FlashlightAngle",
+		Callback = function(v)
+			st.flashlightAngle = math.clamp(tonumber(v) or 70, 15, 120)
+			_G.RakeFlashlightAngle = st.flashlightAngle
+			cfgSet("flashlightAngle", st.flashlightAngle)
+			clientBypass.applyLightToolBypasses()
+		end,
+	})
+
+	ClientTab:CreateSlider({
+		Name = "手电筒光束宽度",
+		Range = {0, 3},
+		Increment = 0.05,
+		CurrentValue = st.flashlightBeamWidth,
+		Flag = "FlashlightBeamWidth",
+		Callback = function(v)
+			st.flashlightBeamWidth = math.clamp(tonumber(v) or 0.5, 0, 3)
+			_G.RakeFlashlightBeamWidth = st.flashlightBeamWidth
+			cfgSet("flashlightBeamWidth", st.flashlightBeamWidth)
+			clientBypass.applyLightToolBypasses()
+		end,
+	})
+
+	ClientTab:CreateToggle({
+		Name = "阻止菜单重开",
+		CurrentValue = st.disableMenuReopen,
+		Flag = "BlockMenuReopen",
+		Callback = function(state)
+			st.disableMenuReopen = state == true
+			_G.RakeDisableMenuReopen = st.disableMenuReopen
+			cfgSet("disableMenuReopen", st.disableMenuReopen)
+			clientBypass.removeIntroClones()
+		end,
+	})
+
+	ClientTab:CreateToggle({
+		Name = "强制启用背包",
+		CurrentValue = st.forceBackpack,
+		Flag = "ForceBackpackEnabled",
+		Callback = function(state)
+			st.forceBackpack = state == true
+			_G.RakeForceBackpack = st.forceBackpack
+			cfgSet("forceBackpack", st.forceBackpack)
+			clientBypass.forceCoreParts()
+		end,
+	})
+
+	ClientTab:CreateToggle({
+		Name = "强制鼠标图标",
+		CurrentValue = st.forceMouseIcon,
+		Flag = "ForceMouseIcon",
+		Callback = function(state)
+			st.forceMouseIcon = state == true
+			_G.RakeForceMouseIcon = st.forceMouseIcon
+			cfgSet("forceMouseIcon", st.forceMouseIcon)
+			clientBypass.forceCoreParts()
+		end,
+	})
+
+	ClientTab:CreateToggle({
+		Name = "强制启用顶栏",
+		CurrentValue = st.forceTopbar,
+		Flag = "ForceTopbarEnabled",
+		Callback = function(state)
+			st.forceTopbar = state == true
+			_G.RakeForceTopbar = st.forceTopbar
+			cfgSet("forceTopbar", st.forceTopbar)
+			clientBypass.forceCoreParts()
+		end,
+	})
+
+	ClientTab:CreateToggle({
+		Name = "禁用视觉特效",
+		CurrentValue = st.disableVisualFx,
+		Flag = "DisableVisualFX",
+		Callback = function(state)
+			st.disableVisualFx = state == true
+			_G.RakeDisableVisualFx = st.disableVisualFx
+			cfgSet("disableVisualFx", st.disableVisualFx)
+			clientBypass.applyCH(true)
+		end,
+	})
+
+	ClientTab:CreateToggle({
+		Name = "禁用相机抖动",
+		CurrentValue = st.disableCameraShake,
+		Flag = "DisableCameraShake",
+		Callback = function(state)
+			st.disableCameraShake = state == true
+			_G.RakeDisableCameraShake = st.disableCameraShake
+			cfgSet("disableCameraShake", st.disableCameraShake)
+			clientBypass.applyCH(true)
+		end,
+	})
+
+	ClientTab:CreateToggle({
+		Name = "禁用相机晃动",
+		CurrentValue = st.disableCameraBobbing,
+		Flag = "DisableCameraBobbing",
+		Callback = function(state)
+			st.disableCameraBobbing = state == true
+			_G.RakeDisableCameraBobbing = st.disableCameraBobbing
+			cfgSet("disableCameraBobbing", st.disableCameraBobbing)
+			if st.disableCameraBobbing then
+				clientBypass.applyCH(true)
+			else
+				clientBypass.restoreMovementPatches()
+			end
+		end,
+	})
+
+	ClientTab:CreateToggle({
+		Name = "无监视器静电",
+		CurrentValue = st.noMonitorStatic,
+		Flag = "NoMonitorStatic",
+		Callback = function(state)
+			st.noMonitorStatic = state == true
+			_G.RakeNoMonitorStatic = st.noMonitorStatic
+			cfgSet("noMonitorStatic", st.noMonitorStatic)
+			clientBypass.applyMonitorStaticBypass()
+		end,
+	})
+
+	ClientTab:CreateToggle({
+		Name = "隐藏位置弹窗",
+		CurrentValue = st.hideLocationPopups,
+		Flag = "HideLocationPopups",
+		Callback = function(state)
+			st.hideLocationPopups = state == true
+			_G.RakeHideLocationPopups = st.hideLocationPopups
+			cfgSet("hideLocationPopups", st.hideLocationPopups)
+			clientBypass.applyCH(true)
+			clientBypass.applyClientPopupBypasses()
+		end,
+	})
+
+	ClientTab:CreateToggle({
+		Name = "隐藏废料弹窗",
+		CurrentValue = st.hideScrapPopups,
+		Flag = "HideScrapPopups",
+		Callback = function(state)
+			st.hideScrapPopups = state == true
+			_G.RakeHideScrapPopups = st.hideScrapPopups
+			cfgSet("hideScrapPopups", st.hideScrapPopups)
+			clientBypass.applyClientPopupBypasses()
+		end,
+	})
+
+	ClientTab:CreateToggle({
+		Name = "隐藏陷阱挣扎界面",
+		CurrentValue = st.hideTrapGui,
+		Flag = "HideTrapStruggleUI",
+		Callback = function(state)
+			st.hideTrapGui = state == true
+			_G.RakeHideTrapGui = st.hideTrapGui
+			cfgSet("hideTrapGui", st.hideTrapGui)
+			clientBypass.applyClientPopupBypasses()
+		end,
+	})
+
+	ClientTab:CreateToggle({
+		Name = "无倒地/布娃娃",
+		CurrentValue = st.noDowned,
+		Flag = "NoDownedRagdoll",
+		Callback = function(state)
+			st.noDowned = state == true
+			_G.RakeNoDowned = st.noDowned
+			cfgSet("noDowned", st.noDowned)
+			clientBypass.applyCharBypasses()
+			clientBypass.applyCH(true)
+		end,
+	})
+
+	ClientTab:CreateToggle({
+		Name = "无移动锁定",
+		CurrentValue = st.noMoveLock,
+		Flag = "NoMovementLock",
+		Callback = function(state)
+			st.noMoveLock = state == true
+			_G.RakeNoMoveLock = st.noMoveLock
+			cfgSet("noMoveLock", st.noMoveLock)
+			clientBypass.applyCharBypasses()
+			clientBypass.applyCH(true)
+		end,
+	})
+
+	ClientTab:CreateToggle({
+		Name = "无陷阱锁定",
+		CurrentValue = st.noTrapLock,
+		Flag = "NoTrapLock",
+		Callback = function(state)
+			st.noTrapLock = state == true
+			_G.RakeNoTrapLock = st.noTrapLock
+			cfgSet("noTrapLock", st.noTrapLock)
+			clientBypass.applyCharBypasses()
+			clientBypass.applyCH(true)
+		end,
+	})
+
+	ClientTab:CreateToggle({
+		Name = "无惊吓相机",
+		CurrentValue = st.noJumpscareCam,
+		Flag = "NoJumpscareCamera",
+		Callback = function(state)
+			st.noJumpscareCam = state == true
+			_G.RakeNoJumpscareCam = st.noJumpscareCam
+			cfgSet("noJumpscareCam", st.noJumpscareCam)
+			clientBypass.applyCH(true)
+		end,
+	})
+
+	ClientTab:CreateToggle({
+		Name = "无追逐静电",
+		CurrentValue = st.noChaseStatic,
+		Flag = "NoChaseStatic",
+		Callback = function(state)
+			st.noChaseStatic = state == true
+			_G.RakeNoChaseStatic = st.noChaseStatic
+			cfgSet("noChaseStatic", st.noChaseStatic)
+			clientBypass.applyCH(true)
+		end,
+	})
+
+
+	PlayerTab:CreateSlider({
+		Name = "最小缩放",
+		Range = {0.5, 100000},
+		Increment = 0.5,
+		CurrentValue = st.minZoom,
+		Flag = "MinZoom",
+		Callback = function(state)
+			st.minZoom = math.clamp(tonumber(state) or st.minZoom, 0.5, 100000)
+			if st.maxZoom < st.minZoom then
+				st.maxZoom = st.minZoom
+				cfgSet("maxZoom", st.maxZoom)
+			end
+			_G.RakeMinZoom = st.minZoom
+			cfgSet("minZoom", st.minZoom)
+			if type(clientBypass.applyZoom) == "function" then
+				clientBypass.applyZoom(true)
+			end
+		end,
+	})
+
+	PlayerTab:CreateSlider({
+		Name = "最大缩放",
+		Range = {0.5, 100000},
+		Increment = 100,
+		CurrentValue = st.maxZoom,
+		Flag = "MaxZoom",
+		Callback = function(state)
+			st.maxZoom = math.clamp(tonumber(state) or st.maxZoom, 0.5, 100000)
+			if st.maxZoom < st.minZoom then
+				st.maxZoom = st.minZoom
+			end
+			_G.RakeMaxZoom = st.maxZoom
+			cfgSet("maxZoom", st.maxZoom)
+			if type(clientBypass.applyZoom) == "function" then
+				clientBypass.applyZoom(true)
+			end
+		end,
+	})
+
+
+
+	PlayerTab:CreateToggle({
+		Name = "无限体力",
+		CurrentValue = st.infStamina,
+		Flag = "InfStamina",
+		Callback = function(state)
+			_G.InfStamina = state == true
+			st.infStamina = _G.InfStamina
+			cfgSet("infStamina", st.infStamina)
+			if st.infStamina == true then
+				applyInfTabs(true)
+				queueInfTabs(12)
+				pcall(clientBypass.applyStaminaModuleBypass)
+				pcall(clientBypass.applyStaminaSignals)
+				clientBypass.applyCH(true)
+			else
+				pcall(clientBypass.applyStaminaSignals)
+			end
+		end,
+	})
+
+	PlayerTab:CreateToggle({
+		Name = "无限夜视",
+		CurrentValue = st.infNight,
+		Flag = "InfNightVision",
+		Callback = function(state)
+			_G.InfNightVision = state == true
+			st.infNight = _G.InfNightVision
+			cfgSet("infNight", st.infNight)
+			if st.infNight == true then
+				applyInfTabs(true)
+				queueInfTabs(12)
+				clientBypass.applyStaminaModuleBypass()
+				clientBypass.applyCH(true)
+			end
+		end,
+	})
+
+	PlayerTab:CreateToggle({
+		Name = "自动治疗自己",
+		CurrentValue = st.autoHealSelf,
+		Flag = "AutoFirstAidSelf",
+		Callback = function(state)
+			st.autoHealSelf = state == true
+			_G.RakeAutoHealSelf = st.autoHealSelf
+			cfgSet("autoHealSelf", st.autoHealSelf)
+		end,
+	})
+
+	PlayerTab:CreateSlider({
+		Name = "自疗低于 %",
+		Range = {1, 100},
+		Increment = 1,
+		CurrentValue = st.healSelfAt,
+		Flag = "SelfHealBelow",
+		Callback = function(v)
+			st.healSelfAt = math.clamp(tonumber(v) or 55, 1, 100)
+			_G.RakeHealSelfAt = st.healSelfAt
+			cfgSet("healSelfAt", st.healSelfAt)
+		end,
+	})
+
+	PlayerTab:CreateToggle({
+		Name = "自动治疗玩家",
+		CurrentValue = st.autoHealPlayers,
+		Flag = "AutoFirstAidPlayers",
+		Callback = function(state)
+			st.autoHealPlayers = state == true
+			_G.RakeAutoHealPlayers = st.autoHealPlayers
+			cfgSet("autoHealPlayers", st.autoHealPlayers)
+		end,
+	})
+
+	PlayerTab:CreateSlider({
+		Name = "玩家治疗低于 %",
+		Range = {1, 100},
+		Increment = 1,
+		CurrentValue = st.healPlayerAt,
+		Flag = "PlayerHealBelow",
+		Callback = function(v)
+			st.healPlayerAt = math.clamp(tonumber(v) or 60, 1, 100)
+			_G.RakeHealPlayerAt = st.healPlayerAt
+			cfgSet("healPlayerAt", st.healPlayerAt)
+		end,
+	})
+
+	PlayerTab:CreateToggle({
+		Name = "自动装备急救包",
+		CurrentValue = st.healAutoEquip,
+		Flag = "FirstAidAutoEquip",
+		Callback = function(state)
+			st.healAutoEquip = state == true
+			_G.RakeHealAutoEquip = st.healAutoEquip
+			cfgSet("healAutoEquip", st.healAutoEquip)
+		end,
+	})
+
+	local RakeKillauraToggle = ExploitsTab:CreateToggle({
+		Name = "Rake 杀戮光环",
+		CurrentValue = st.rakeAura,
+		Flag = "RakeAura",
+		Callback = function(state)
+			_G.RakeKillAura = state == true
+			st.rakeAura = _G.RakeKillAura
+			cfgSet("rakeAura", st.rakeAura)
+			UI:Notify({
+				Title = "Rake 杀戮光环",
+				Content = "Rake 杀戮光环 : "..tostring(_G.RakeKillAura),
+				Duration = 1,
+				Image = 4483362458,
+			})
+		end,
+	})
+
+	ExploitsTab:CreateSlider({
+		Name = "杀戮光环范围",
+		Range = {6, 30},
+		Increment = 1,
+		CurrentValue = st.rakeAuraRange,
+		Flag = "RakeAuraRange",
+		Callback = function(v)
+			st.rakeAuraRange = math.clamp(tonumber(v) or 12, 6, 30)
+			_G.RakeAuraRange = st.rakeAuraRange
+			cfgSet("rakeAuraRange", st.rakeAuraRange)
+		end,
+	})
+
+	ExploitsTab:CreateSlider({
+		Name = "杀戮光环延迟",
+		Range = {0.05, 0.6},
+		Increment = 0.01,
+		CurrentValue = st.rakeAuraDelay,
+		Flag = "RakeAuraDelay",
+		Callback = function(v)
+			st.rakeAuraDelay = math.clamp(tonumber(v) or 0.12, 0.05, 0.6)
+			_G.RakeAuraDelay = st.rakeAuraDelay
+			cfgSet("rakeAuraDelay", st.rakeAuraDelay)
+		end,
+	})
+
+	ExploitsTab:CreateToggle({
+		Name = "自动装备武器",
+		CurrentValue = st.rakeAuraAutoEquip,
+		Flag = "RakeAuraAutoEquip",
+		Callback = function(state)
+			st.rakeAuraAutoEquip = state == true
+			_G.RakeAuraAutoEquip = st.rakeAuraAutoEquip
+			cfgSet("rakeAuraAutoEquip", st.rakeAuraAutoEquip)
+		end,
+	})
+
+	local auraT = 0
+	local aura = {
+		rk = nil,
+		rr = nil,
+		rh = nil,
+		stick = nil,
+		ev = nil,
+		hp = nil,
+		bp = nil,
+	}
+
+	local function auraClearRake()
+		aura.rk = nil
+		aura.rr = nil
+		aura.rh = nil
+	end
+
+	local function auraClearStick()
+		aura.stick = nil
+		aura.ev = nil
+		aura.hp = nil
+	end
+
+	local function auraIsStick(v)
+		if not (v and v:IsA("Tool")) then
+			return false
+		end
+		local n = string.lower(v.Name)
+		return n == "stunstick" or (string.find(n, "stun", 1, true) and string.find(n, "stick", 1, true)) ~= nil
+	end
+
+	local function auraGetRake()
+		local rk = aura.rk
+		if not (rk and rk.Parent) then
+			rk = ffc(Ws, "Rake")
+			aura.rk = rk
+			aura.rr = nil
+			aura.rh = nil
+		end
+		if not rk then
+			return nil
+		end
+		local rh = aura.rh
+		if not (rh and rh.Parent) then
+			rh = ffc(rk, "Monster") or ffca(rk, "Humanoid")
+			aura.rh = rh
+		end
+		if rh and rh.Health and rh.Health <= 0 then
+			return nil
+		end
+		local rr = aura.rr
+		if not (rr and rr.Parent) then
+			rr = ffc(rk, "HumanoidRootPart") or ffcr(rk, "HumanoidRootPart")
+			aura.rr = rr
+		end
+		if not rr then
+			return nil
+		end
+		return rk, rr, rh
+	end
+
+	local function auraGetPart(rk, rr, pos)
+		local best = rr
+		local bd = rr and (rr.Position - pos).Magnitude or math.huge
+		local names = { "Head", "Torso", "UpperTorso", "LowerTorso", "HumanoidRootPart" }
+		for i = 1, #names do
+			local v = ffc(rk, names[i])
+			if v and v:IsA("BasePart") then
+				local d = (v.Position - pos).Magnitude
+				if d < bd then
+					best = v
+					bd = d
+				end
+			end
+		end
+		return best
+	end
+
+	local function auraGetStick()
+		local ch = getChar()
+		if not ch then
+			return nil
+		end
+		local s = aura.stick
+		if not (s and s.Parent) then
+			s = nil
+			for _, v in kids(ch) do
+				if auraIsStick(v) then
+					s = v
+					break
+				end
+			end
+			if not s then
+				local bp = aura.bp
+				if not (bp and bp.Parent) then
+					local lp = Plrs.LocalPlayer
+					bp = lp and ffc(lp, "Backpack") or nil
+					aura.bp = bp
+				end
+				if bp then
+					for _, v in kids(bp) do
+						if auraIsStick(v) then
+							s = v
+							break
+						end
+					end
+				end
+				if s and _G.RakeAuraAutoEquip == true then
+					local hum = getHum()
+					if hum then
+						pcall(function()
+							hum:EquipTool(s)
+						end)
+					end
+					return nil
+				end
+			end
+			aura.stick = s
+			aura.ev = nil
+			aura.hp = nil
+		end
+		if not (s and s.Parent == ch) then
+			if s and _G.RakeAuraAutoEquip == true then
+				local hum = getHum()
+				if hum then
+					pcall(function()
+						hum:EquipTool(s)
+					end)
+				end
+				auraClearStick()
+			end
+			return nil
+		end
+		local ev = aura.ev
+		if not (ev and ev.Parent) then
+			ev = ffc(s, "Event") or ffcr(s, "Event")
+			aura.ev = ev
+		end
+		local hp = aura.hp
+		if not (hp and hp.Parent) then
+			hp = ffc(s, "HitPart") or ffcr(s, "HitPart")
+			aura.hp = hp
+		end
+		return s, ev, hp
+	end
+
+	local function auraHasPower()
+		local p = ffc(Rep, "StationPower")
+		if p and p.Value ~= true then
+			return false
+		end
+		return true
+	end
+
+	local function auraHasStamina()
+		if st.infStamina == true or _G.InfStamina == true then
+			return true
+		end
+		local g = ffc(Rep, "GSTMNA")
+		if not g then
+			return true
+		end
+		local ok, val = pcall(function()
+			return g:Invoke()
+		end)
+		return not ok or not val or val >= 12
+	end
+
+	local function auraTakeStamina()
+		if st.infStamina == true or _G.InfStamina == true then
+			return
+		end
+		local tks = ffc(Rep, "TKSMNA")
+		if tks then
+			pcall(function()
+				tks:Fire(12)
+			end)
+		end
+	end
+
+	local function auraPrepHitpart(hp)
+		if not hp then
+			return
+		end
+		pcall(function()
+			hp.CanTouch = true
+			hp.CanQuery = true
+		end)
+	end
+
+	local function auraSwing(ev, hit)
+		if not (ev and hit) then
+			return
+		end
+		pcall(function()
+			ev:FireServer("S")
+		end)
+		auraTakeStamina()
+		pcall(function()
+			ev:FireServer("H", hit)
+		end)
+	end
+
+	bind(Ws.ChildAdded, function(obj)
+		if obj and obj.Name == "Rake" then
+			auraClearRake()
+			aura.rk = obj
+		end
+	end)
+
+	bind(Ws.ChildRemoved, function(obj)
+		if obj == aura.rk or obj.Name == "Rake" then
+			auraClearRake()
+		end
+	end)
+
+	bind(Plrs.LocalPlayer.CharacterAdded, function()
+		auraClearStick()
+	end)
+
+	bind(Run.Heartbeat, function(dt)
+		if AllowRunService ~= true or _G.RakeKillAura ~= true then
+			auraT = 0
+			return
+		end
+		auraT += dt
+		pcall(function()
+			local root = GET_HRP()
+			if not root then
+				return
+			end
+			local rk, rr = auraGetRake()
+			if not (rk and rr) then
+				return
+			end
+			local range = math.clamp(tonumber(_G.RakeAuraRange) or 12, 6, 30)
+			if (rr.Position - root.Position).Magnitude > range then
+				return
+			end
+			local stick, ev, hp = auraGetStick()
+			if not (stick and ev) then
+				return
+			end
+			local hit = auraGetPart(rk, rr, root.Position)
+			if not hit or (hit.Position - root.Position).Magnitude > range then
+				return
+			end
+			auraPrepHitpart(hp)
+			local delay = math.clamp(tonumber(_G.RakeAuraDelay) or 0.12, 0.05, 0.6)
+			if auraT >= delay and auraHasPower() and auraHasStamina() then
+				auraT = 0
+				auraSwing(ev, hit)
+			end
+		end)
+	end)
+
+
+
+	-- rake killaura bind
+
+	ExploitsTab:CreateKeybind({
+		Name = "切换杀戮光环",
+		CurrentKeybind = "R",
+		HoldToInteract = false,
+		Flag = "KillAuraKeybind",
+		Callback = function(state)
+			if _G.RakeKillAura == true then
+				RakeKillauraToggle:Set(false)
+			elseif _G.RakeKillAura == false then
+				RakeKillauraToggle:Set(true)
+			end
+		end,
+	})
+
+	ClientTab:CreateToggle({
+		Name = "Rake 透视",
+		CurrentValue = st.rakeChams,
+		Flag = "RakeChams",
+		Callback = function(state)
+			_G.RakeChams = state == true
+			st.rakeChams = _G.RakeChams
+			cfgSet("rakeChams", st.rakeChams)
+			if not state and cleanupEsp then
+				cleanupEsp("rake")
+			end
+		end,
+	})
+
+	ClientTab:CreateToggle({
+		Name = "玩家 ESP",
+		CurrentValue = st.playerEsp,
+		Flag = "PlrEsp",
+		Callback = function(state)
+			_G.PlayerESP = state == true
+			st.playerEsp = _G.PlayerESP
+			cfgSet("playerEsp", st.playerEsp)
+			if not state and cleanupEsp then
+				cleanupEsp("players")
+			end
+		end,
+	})
+
+	ClientTab:CreateToggle({
+		Name = "显示移动距离",
+		CurrentValue = st.showDist,
+		Flag = "ShowDistanceTravelled",
+		Callback = function(state)
+			_G.PlayerESPShowDistance = state == true
+			st.showDist = _G.PlayerESPShowDistance
+			cfgSet("showDist", st.showDist)
+		end,
+	})
+
+	local function itemNote(title, msg)
+		pcall(function()
+			UI:Notify({
+				Title = title,
+				Content = msg,
+				Duration = 4,
+			})
+		end)
+	end
+
+	local function charCf()
+		local ch = getChar()
+		if not ch or not ch.Parent then
+			return nil
+		end
+		local ok, cf = pcall(function()
+			return ch:GetPivot()
+		end)
+		return ok and cf or nil
+	end
+
+	local function inChar(obj)
+		for _, plr in kids(Plrs) do
+			local ch = plr.Character
+			if ch and obj:IsDescendantOf(ch) then
+				return true
+			end
+		end
+		return false
+	end
+
+	local function moveObj(obj, cf, n)
+		local off = CFrame.new((n % 5) * 1.5, 1.5 + math.floor(n / 5) * 0.35, 0)
+		if obj:IsA("BasePart") then
+			return pcall(function()
+				obj.CFrame = cf * off
+				obj.AssemblyLinearVelocity = Vector3.zero
+				obj.AssemblyAngularVelocity = Vector3.zero
+			end)
+		end
+		if obj:IsA("Model") then
+			return pcall(function()
+				obj:PivotTo(cf * off)
+			end)
+		end
+		return false
+	end
+
+	local function bringNamed(root, want, baseOnly)
+		local cf = charCf()
+		if not cf then
+			return 0
+		end
+		local n = 0
+		for _, obj in desc(root or Ws) do
+			if typeof(obj) == "Instance" and obj.Name:lower() == want and not inChar(obj) then
+				if (not baseOnly and (obj:IsA("BasePart") or obj:IsA("Model"))) or (baseOnly and obj:IsA("BasePart")) then
+					if moveObj(obj, cf, n) then
+						n += 1
+					end
+				end
+			end
+		end
+		return n
+	end
+
+	clientBypass.scrapCollectBusy = false
+
+	local function collectScrapsByTeleport()
+		if clientBypass.scrapCollectBusy == true then
+			return 0, "busy"
+		end
+		local rootPart = GET_HRP()
+		local hum = getHum()
+		local flt = ffc(Ws, "Filter")
+		local root = flt and ffc(flt, "ScrapSpawns") or ffcr(Ws, "ScrapSpawns")
+		if not (rootPart and hum and root) then
+			return 0, "missing"
+		end
+		local scraps = {}
+		for _, obj in desc(root) do
+			if obj:IsA("BasePart") and obj.Name == "Scrap" and obj:FindFirstChildOfClass("TouchTransmitter") then
+				scraps[#scraps + 1] = obj
+			end
+		end
+		if #scraps == 0 then
+			return 0, "empty"
+		end
+
+		clientBypass.scrapCollectBusy = true
+		local oldCf = rootPart.CFrame
+		local collected = 0
+		local backpack = ffc(Plrs.LocalPlayer, "Backpack")
+		local scrapFolder = backpack and ffc(backpack, "ScrapFolder")
+		local points = scrapFolder and ffc(scrapFolder, "Points")
+		for _, scrap in scraps do
+			if AllowRunService ~= true or hum.Health <= 0 or not rootPart.Parent then
+				break
+			end
+			if scrap and scrap.Parent then
+				local before = points and tonumber(points.Value) or nil
+				pcall(function()
+					rootPart.CFrame = scrap.CFrame * CFrame.new(0, 1.5, 0)
+					rootPart.AssemblyLinearVelocity = Vector3.zero
+					rootPart.AssemblyAngularVelocity = Vector3.zero
+				end)
+				task.wait(0.15)
+				pcall(function() rootPart.CFrame = scrap.CFrame end)
+				task.wait(0.15)
+				local after = points and tonumber(points.Value) or nil
+				if not scrap.Parent or (before and after and after > before) then
+					collected += 1
+				end
+			end
+		end
+		pcall(function()
+			rootPart.CFrame = oldCf
+			rootPart.AssemblyLinearVelocity = Vector3.zero
+			rootPart.AssemblyAngularVelocity = Vector3.zero
+		end)
+		clientBypass.scrapCollectBusy = false
+		return collected, "done"
+	end
+
+	clientBypass.autoCollectScraps = function()
+		if st.autoScrapCollect ~= true or clientBypass.scrapCollectBusy == true then
+			return false
+		end
+		local flt = ffc(Ws, "Filter")
+		local root = flt and ffc(flt, "ScrapSpawns")
+		if not root then
+			return false
+		end
+		for _, obj in desc(root) do
+			if obj:IsA("BasePart") and obj.Name == "Scrap" and obj:FindFirstChildOfClass("TouchTransmitter") then
+				task.spawn(collectScrapsByTeleport)
+				return true
+			end
+		end
+		return false
+	end
+
+	ExploitsTab:CreateButton({
+		Name = "收集所有废料",
+		Callback = function()
+			task.spawn(function()
+				local n, why = collectScrapsByTeleport()
+				if why == "busy" then
+					itemNote("收集废料", "废料收集已在运行中。")
+				elseif n <= 0 then
+					itemNote("收集废料", "未找到可收集的废料。")
+				else
+					itemNote("收集废料", "已收集 " .. tostring(n) .. " 个废料。")
+				end
+			end)
+		end,
+	})
+
+	ExploitsTab:CreateToggle({
+		Name = "自动收集废料",
+		CurrentValue = st.autoScrapCollect,
+		Flag = "AutoCollectScraps",
+		Callback = function(state)
+			st.autoScrapCollect = state == true
+			_G.RakeAutoScrapCollect = st.autoScrapCollect
+			cfgSet("autoScrapCollect", st.autoScrapCollect)
+			if st.autoScrapCollect then
+				clientBypass.autoCollectScraps()
+			end
+		end,
+	})
+
+	ExploitsTab:CreateButton({
+		Name = "立即恢复电力",
+		Callback = function()
+			task.spawn(function()
+				local ok, why = clientBypass.repairPowerStation()
+				if ok and why == "powered" then
+					itemNote("电力站", "电力已在线。")
+				elseif ok then
+					itemNote("电力站", "电力恢复完成。")
+				elseif why == "busy" then
+					itemNote("电力站", "电力恢复已在运行中。")
+				else
+					itemNote("电力站", "电力恢复失败或超时。")
+				end
+			end)
+		end,
+	})
+
+	ExploitsTab:CreateToggle({
+		Name = "自动恢复电力",
+		CurrentValue = st.autoPowerRestore,
+		Flag = "AutoRestorePower",
+		Callback = function(state)
+			st.autoPowerRestore = state == true
+			_G.RakeAutoPowerRestore = st.autoPowerRestore
+			cfgSet("autoPowerRestore", st.autoPowerRestore)
+			if st.autoPowerRestore then
+				clientBypass.autoRestorePower()
+			end
+		end,
+	})
+
+	ExploitsTab:CreateToggle({
+		Name = "使用工具箱恢复电力",
+		CurrentValue = st.powerRestoreUseToolbox,
+		Flag = "PowerRestoreToolbox",
+		Callback = function(state)
+			st.powerRestoreUseToolbox = state == true
+			cfgSet("powerRestoreUseToolbox", st.powerRestoreUseToolbox)
+		end,
+	})
+
+	ExploitsTab:CreateButton({
+		Name = "收集信号枪",
+		Callback = function()
+			task.spawn(function()
+				local pickup = ffcr(Ws, "FlareGunPickUp")
+				local target
+				for _, obj in desc(pickup or Ws) do
+					if obj:IsA("BasePart") and obj.Name:lower() == "flaregun" then
+						target = obj
+						break
+					end
+				end
+				local rootPart = GET_HRP()
+				if not (target and rootPart) then
+					itemNote("收集信号枪", "当前没有生成信号枪拾取物。")
+					return
+				end
+				local oldCf = rootPart.CFrame
+				pcall(function() rootPart.CFrame = target.CFrame * CFrame.new(0, 1.5, 0) end)
+				task.wait(0.2)
+				pcall(function() rootPart.CFrame = target.CFrame end)
+				task.wait(0.25)
+				pcall(function() rootPart.CFrame = oldCf end)
+				itemNote("收集信号枪", target.Parent and "已触碰信号枪拾取物。" or "已收集信号枪。")
+			end)
+		end,
+	})
+
+	ClientTab:CreateToggle({
+		Name = "信号枪 ESP",
+		CurrentValue = st.flareEsp,
+		Flag = "FlareGunESP",
+		Callback = function(state)
+			_G.FlareGunESP = state == true
+			st.flareEsp = _G.FlareGunESP
+			cfgSet("flareEsp", st.flareEsp)
+			if not state and cleanupEsp then
+				cleanupEsp("flare")
+			end
+		end,
+	})
+
+	ClientTab:CreateToggle({
+		Name = "补给箱 ESP",
+		CurrentValue = st.dropEsp,
+		Flag = "SupplyDropESP",
+		Callback = function(state)
+			_G.SupplyDropESP = state == true
+			st.dropEsp = _G.SupplyDropESP
+			cfgSet("dropEsp", st.dropEsp)
+			if not state and cleanupEsp then
+				cleanupEsp("drops")
+			end
+		end,
+	})
+
+
+
+	esp = {
+		flare = nil,
+		rake = nil,
+		drops = {},
+		locs = {},
+		players = {},
+		scraps = {},
+		scrapRoot = nil,
+		traps = {},
+	}
+
+	esp.getLocFolder = function()
+		local filter = ffc(Ws, "Filter")
+		return filter and ffc(filter, "LocationPoints") or nil
+	end
+
+	esp.locName = function(obj)
+		local n = tostring(obj and obj.Name or "Location")
+		n = n:gsub("MSG$", "")
+		n = n:gsub("_", " ")
+		n = n:gsub("(%l)(%u)", "%1 %2")
+		return n
+	end
+
+	esp.locPos = function(obj)
+		if not obj then
+			return nil
+		end
+		if obj:IsA("BasePart") then
+			return obj.Position
+		end
+		if obj:IsA("Model") then
+			local ok, cf = pcall(function()
+				return obj:GetPivot()
+			end)
+			return ok and cf and cf.Position or nil
+		end
+		if obj:IsA("CFrameValue") then
+			return obj.Value.Position
+		end
+		if obj:IsA("Vector3Value") then
+			return obj.Value
+		end
+		return nil
+	end
+
+
+	esp.drawTxt = function(txt, col)
+		if not Drawing or not Drawing.new then
+			return nil
+		end
+		local ok, d = pcall(function()
+			return Drawing.new("Text")
+		end)
+		if not ok or not d then
+			return nil
+		end
+		d.Text = txt or ""
+		d.Color = col or Color3.fromRGB(255, 255, 255)
+		d.Outline = false
+		d.Center = true
+		d.Font = 2
+		d.Size = st.espSize or 12
+		d.Visible = false
+		return d
+	end
+
+	esp.cham = function(par, name, fill, out, trans)
+		if not par or st.espChams ~= true then
+			return nil
+		end
+		local h = ffc(par, name)
+		if h and h:IsA("Highlight") then
+			h.Enabled = true
+			return h
+		end
+		h = Instance.new("Highlight")
+		h.Name = name
+		h.Adornee = par
+		h.FillColor = fill or Color3.fromRGB(255, 255, 255)
+		h.OutlineColor = out or Color3.fromRGB(170, 170, 170)
+		h.FillTransparency = trans or 0.3
+		h.OutlineTransparency = 0.8
+		h.Parent = par
+		return h
+	end
+
+	esp.posOf = function(obj)
+		if not obj then
+			return nil
+		end
+		if obj:IsA("BasePart") then
+			return obj.Position
+		end
+		if obj:IsA("Model") then
+			local pp = obj.PrimaryPart or ffcr(obj, "HumanoidRootPart") or ffcr(obj, "Head") or ffcr(obj, "HitBox") or ffcr(obj, "Scrap")
+			if pp and pp:IsA("BasePart") then
+				return pp.Position
+			end
+			local ok, cf = pcall(function()
+				return obj:GetPivot()
+			end)
+			if ok and cf then
+				return cf.Position
+			end
+		end
+		return nil
+	end
+
+	esp.show = function(d, pos, txt)
+		if not d or not pos then
+			if d then d.Visible = false end
+			return
+		end
+		local cam = workspace.CurrentCamera
+		if not cam then
+			d.Visible = false
+			return
+		end
+		local me = GET_HRP()
+		local dist
+		if me then
+			dist = (pos - me.Position).Magnitude
+			if (tonumber(st.espMax) or 0) > 0 and dist > st.espMax then
+				d.Visible = false
+				return
+			end
+		end
+		local p, on = cam:WorldToViewportPoint(pos)
+		if on then
+			local text = txt or d.Text
+			if st.espDist == true and dist then
+				text = tostring(text) .. " [" .. tostring(math.floor(dist + 0.5)) .. "m]"
+			end
+			if d.Text ~= text then
+				d.Text = text
+			end
+			local size = st.espSize or d.Size
+			if d.Size ~= size then
+				d.Size = size
+			end
+			if d.Outline ~= false then
+				d.Outline = false
+			end
+			local pos2 = Vector2.new(p.X, p.Y)
+			if d.Position ~= pos2 then
+				d.Position = pos2
+			end
+			if d.Visible ~= true then
+				d.Visible = true
+			end
+		else
+			if d.Visible ~= false then
+				d.Visible = false
+			end
+		end
+	end
+
+	esp.itemVal = function(root, name)
+		local cur = root
+		for _ = 1, 5 do
+			if not cur then
+				break
+			end
+			local v = ffc(cur, name)
+			if v then
+				return valOf(v, "?")
+			end
+			local ok, attr = pcall(function()
+				return cur:GetAttribute(name)
+			end)
+			if ok and attr ~= nil then
+				return attr
+			end
+			cur = cur.Parent
+		end
+		return "?"
+	end
+
+	esp.scrapTxt = function(part)
+		local root = part and part.Parent
+		local pts = esp.itemVal(root, "PointsVal")
+		local lvl = esp.itemVal(root, "LevelVal")
+		return "Scrap, Points "..tostring(pts)..", Level "..tostring(lvl)
+	end
+
+	esp.dropTxt = function(box)
+		local folder = box and ffc(box, "Items_Folder")
+		local names = {}
+		for _, item in kids(folder) do
+			if valOf(ffc(item, "Taken"), false) ~= true then
+				local rarity = valOf(ffc(item, "Rarity"), nil)
+				local label = item.Name
+				if rarity ~= nil and tostring(rarity) ~= "" then
+					label ..= " [" .. tostring(rarity) .. "]"
+				end
+				names[#names + 1] = label
+			end
+		end
+		if #names == 0 then
+			return "Supply Drop [Empty]"
+		end
+		local shown = {}
+		for i = 1, math.min(#names, 4) do
+			shown[#shown + 1] = names[i]
+		end
+		local extra = #names > 4 and (" +" .. tostring(#names - 4)) or ""
+		return "Supply Drop: " .. table.concat(shown, ", ") .. extra
+	end
+
+	esp.clearOne = function(tab, key)
+		local it = tab[key]
+		if not it then
+			return
+		end
+		safeDrawRemove(it.d)
+		safeDestroy(it.h)
+		tab[key] = nil
+	end
+
+	cleanupEsp = function(kind)
+		if not kind or kind == "flare" then
+			if esp.flare then
+				safeDrawRemove(esp.flare.d)
+				safeDestroy(esp.flare.h)
+				esp.flare = nil
+			end
+		end
+		if not kind or kind == "rake" then
+			if esp.rake then
+				safeDrawRemove(esp.rake.d)
+				safeDestroy(esp.rake.h)
+				esp.rake = nil
+			end
+		end
+		if not kind or kind == "players" then
+			for k in esp.players do
+				esp.clearOne(esp.players, k)
+			end
+		end
+		if not kind or kind == "drops" then
+			for k in esp.drops do
+				esp.clearOne(esp.drops, k)
+			end
+		end
+		if not kind or kind == "locs" then
+			for k, d in esp.locs do
+				safeDrawRemove(d)
+				esp.locs[k] = nil
+			end
+		end
+		if not kind or kind == "scraps" then
+			for k in esp.scraps do
+				esp.clearOne(esp.scraps, k)
+			end
+		end
+		if not kind or kind == "traps" then
+			for k in esp.traps do
+				esp.clearOne(esp.traps, k)
+			end
+		end
+	end
+
+	ClientTab:CreateToggle({
+		Name = "位置 ESP",
+		CurrentValue = st.locEsp,
+		Flag = "LocationESP",
+		Callback = function(state)
+			_G.LocationESP = state == true
+			st.locEsp = _G.LocationESP
+			cfgSet("locEsp", st.locEsp)
+			if not state and cleanupEsp then
+				cleanupEsp("locs")
+			end
+		end,
+	})
+
+	ClientTab:CreateToggle({
+		Name = "废料 ESP",
+		CurrentValue = st.scrapEsp,
+		Flag = "ScrapESP",
+		Callback = function(state)
+			_G.ScrapESP = state == true
+			st.scrapEsp = _G.ScrapESP
+			cfgSet("scrapEsp", st.scrapEsp)
+			if state then
+				esp.scrapRoot = nil
+			elseif cleanupEsp then
+				cleanupEsp("scraps")
+			end
+		end,
+	})
+
+	ClientTab:CreateToggle({
+		Name = "Rake 陷阱 ESP",
+		CurrentValue = st.trapEsp,
+		Flag = "RakeTrapESP",
+		Callback = function(state)
+			_G.RakeTrapESP = state == true
+			st.trapEsp = _G.RakeTrapESP
+			cfgSet("trapEsp", st.trapEsp)
+			if not state and cleanupEsp then
+				cleanupEsp("traps")
+			end
+		end,
+	})
+
+	esp.scanT = 1
+	esp.updT = 0
+
+	esp.espAny = function()
+		return _G.FlareGunESP == true or _G.RakeChams == true or _G.PlayerESP == true or _G.SupplyDropESP == true or _G.LocationESP == true or _G.ScrapESP == true or _G.RakeTrapESP == true
+	end
+
+	esp.scanEsp = function()
+		if _G.FlareGunESP == true then
+			local fl = ffcr(Ws, "FlareGunPickUp")
+			if fl then
+				if not esp.flare or esp.flare.o ~= fl then
+					cleanupEsp("flare")
+					esp.flare = {
+						o = fl,
+						d = esp.drawTxt("Flare Gun", Color3.fromRGB(0, 225, 255)),
+						h = esp.cham(fl, "FlareGunChams", Color3.fromRGB(255, 0, 0), Color3.fromRGB(170, 170, 170), 0.3),
+					}
+				end
+			else
+				cleanupEsp("flare")
+			end
+		else
+			cleanupEsp("flare")
+		end
+
+		if _G.RakeChams == true then
+			local rk = ffcr(Ws, "Rake")
+			if rk then
+				if not esp.rake or esp.rake.o ~= rk then
+					cleanupEsp("rake")
+					esp.rake = {
+						o = rk,
+						d = esp.drawTxt("Rake", Color3.fromRGB(255, 0, 0)),
+						h = esp.cham(rk, "RakeChams", Color3.fromRGB(170, 0, 0), Color3.fromRGB(255, 255, 255), 0.3),
+					}
+				end
+			else
+				cleanupEsp("rake")
+			end
+		else
+			cleanupEsp("rake")
+		end
+
+		if _G.PlayerESP == true then
+			for _, p in Plrs:GetPlayers() do
+				if p ~= Plrs.LocalPlayer and p.Character then
+					local ch = p.Character
+					if not esp.players[p] or esp.players[p].o ~= ch then
+						esp.clearOne(esp.players, p)
+						esp.players[p] = {
+							o = ch,
+							d = esp.drawTxt(p.Name, Color3.fromRGB(0, 255, 34)),
+							h = esp.cham(ch, "PlayerChams", Color3.fromRGB(0, 11, 170), Color3.fromRGB(170, 170, 170), 0.3),
+						}
+					end
+				end
+			end
+			for p, it in esp.players do
+				if not p.Parent or not p.Character or p.Character ~= it.o then
+					esp.clearOne(esp.players, p)
+				end
+			end
+		else
+			cleanupEsp("players")
+		end
+
+		if _G.SupplyDropESP == true then
+			eachDrop(function(box)
+				if not esp.drops[box] then
+					esp.drops[box] = {
+						o = box,
+						d = esp.drawTxt("Supply Drop", Color3.fromRGB(251, 255, 0)),
+						h = nil,
+					}
+				end
+			end)
+			for box in esp.drops do
+				if not box.Parent then
+					esp.clearOne(esp.drops, box)
+				end
+			end
+		else
+			cleanupEsp("drops")
+		end
+
+		if _G.ScrapESP == true then
+			local filter = ffc(Ws, "Filter")
+			local root = filter and ffc(filter, "ScrapSpawns")
+			if root ~= esp.scrapRoot then
+				esp.scrapRoot = root
+				cleanupEsp("scraps")
+				for _, v in desc(root) do
+					if v.Name == "Scrap" and v:IsA("BasePart") and not esp.scraps[v] then
+						esp.scraps[v] = {
+							o = v,
+							d = esp.drawTxt(esp.scrapTxt(v), Color3.fromRGB(77, 35, 1)),
+							h = esp.cham(v, "ScrapChams", Color3.fromRGB(77, 35, 1), Color3.fromRGB(170, 170, 170), 0),
+						}
+					end
+				end
+			end
+			for v in esp.scraps do
+				if not v.Parent then
+					esp.clearOne(esp.scraps, v)
+				end
+			end
+		else
+			esp.scrapRoot = nil
+			cleanupEsp("scraps")
+		end
+
+		if _G.RakeTrapESP == true then
+			local debris = ffc(Ws, "Debris")
+			local root = debris and ffc(debris, "Traps")
+			if root then
+				for _, v in kids(root) do
+					if v.Name == "RakeTrapModel" and v:IsA("Model") and not esp.traps[v] then
+						esp.traps[v] = {
+							o = v,
+							d = esp.drawTxt("Rake Trap", Color3.fromRGB(255, 85, 0)),
+							h = esp.cham(v, "RakeTrapChams", Color3.fromRGB(255, 85, 0), Color3.fromRGB(255, 255, 255), 0.3),
+						}
+					end
+				end
+			end
+			for v in esp.traps do
+				if not v.Parent or v.Parent ~= root then
+					esp.clearOne(esp.traps, v)
+				end
+			end
+		else
+			cleanupEsp("traps")
+		end
+	end
+
+	bind(Ws.DescendantAdded, function(obj)
+		if _G.ScrapESP == true and obj.Name == "Scrap" and obj:IsA("BasePart") then
+			local filter = ffc(Ws, "Filter")
+			local root = filter and ffc(filter, "ScrapSpawns")
+			if root and obj:IsDescendantOf(root) and not esp.scraps[obj] then
+				esp.scrapRoot = root
+				esp.scraps[obj] = {
+					o = obj,
+					d = esp.drawTxt(esp.scrapTxt(obj), Color3.fromRGB(77, 35, 1)),
+					h = esp.cham(obj, "ScrapChams", Color3.fromRGB(77, 35, 1), Color3.fromRGB(170, 170, 170), 0),
+				}
+			end
+		end
+	end)
+
+	bind(Run.Heartbeat, function(dt)
+		if AllowRunService ~= true then
+			cleanupEsp()
+			return
+		end
+
+		if not esp.espAny() then
+			return
+		end
+
+		esp.scanT += dt
+		esp.updT += dt
+
+		if esp.scanT >= (tonumber(st.espScan) or 0.75) then
+			esp.scanT = 0
+			esp.scanEsp()
+		end
+
+		if esp.updT < 0.08 then
+			return
+		end
+		esp.updT = 0
+
+		if _G.LocationESP == true then
+			local root = esp.getLocFolder()
+			local alive = {}
+			if root then
+				for _, obj in kids(root) do
+					local pos = esp.locPos(obj)
+					if pos then
+						alive[obj] = true
+						local name = esp.locName(obj)
+						local d = esp.locs[obj]
+						if not d then
+							d = esp.drawTxt("[LOCATION] "..name, Color3.fromRGB(255, 136, 0))
+							esp.locs[obj] = d
+						end
+						esp.show(d, pos, "[LOCATION] "..name)
+					end
+				end
+			end
+			for obj, d in esp.locs do
+				if not alive[obj] or not obj.Parent then
+					safeDrawRemove(d)
+					esp.locs[obj] = nil
+				end
+			end
+		else
+			cleanupEsp("locs")
+		end
+
+		if esp.flare then
+			local fl = esp.flare.o
+			local part = fl and (ffcr(fl, "FlareGun") or fl)
+			esp.show(esp.flare.d, _G.FlareGunESP and esp.posOf(part), "Flare Gun")
+		end
+
+		if esp.rake then
+			local rk = esp.rake.o
+			local mons = rk and ffcr(rk, "Monster")
+			local hp = valOf(mons and ffcr(mons, "Health"), nil)
+			if hp == nil and rk then
+				local hum = ffca(rk, "Humanoid")
+				hp = hum and hum.Health or hp
+			end
+			esp.show(esp.rake.d, _G.RakeChams and esp.posOf(ffcr(rk, "Head") or rk), "Rake, Health : "..tostring(hp or "?"))
+		end
+
+		for p, it in esp.players do
+			local ch = it.o
+			local head = ch and ffcr(ch, "Head")
+			local txt = p.Name
+			if _G.PlayerESPShowDistance == true then
+				txt = p.Name.." [Distance Travelled : "..tostring(valOf(ffc(p, "DistanceTravelled"), "?")).."]"
+			end
+			esp.show(it.d, _G.PlayerESP and esp.posOf(head or ch), txt)
+		end
+
+		for box, it in esp.drops do
+			esp.show(it.d, _G.SupplyDropESP and esp.posOf(ffcr(box, "HitBox") or box), esp.dropTxt(box))
+		end
+
+		for v, it in esp.scraps do
+			esp.show(it.d, _G.ScrapESP and esp.posOf(v), esp.scrapTxt(v))
+		end
+
+		for v, it in esp.traps do
+			esp.show(it.d, _G.RakeTrapESP and esp.posOf(v), "Rake Trap")
+		end
+	end)
+
+	clientBypass.noFall = {
+		haystackSize = Vector3.new(100000, 100000, 100000),
+		applyToken = 0,
+		env = _G,
+	}
+
+	clientBypass.noFall.getHaystack = function()
+		local ws = game:GetService("Workspace")
+		local filter = ffc(ws, "Filter")
+		return filter and ffc(filter, "Haystack") or nil
+	end
+
+	clientBypass.noFall.applyHaystack = function(enabled)
+		clientBypass.noFall.applyToken = clientBypass.noFall.applyToken + 1
+		local token = clientBypass.noFall.applyToken
+
+		task.spawn(function()
+			for _ = 1, 40 do
+				if token ~= clientBypass.noFall.applyToken then
+					return
+				end
+
+				local haystack = clientBypass.noFall.getHaystack()
+				if haystack then
+					pcall(function()
+						if clientBypass.noFall.env.__rakeHaystackOriginalSize == nil and haystack.Size ~= clientBypass.noFall.haystackSize then
+							clientBypass.noFall.env.__rakeHaystackOriginalSize = haystack.Size
+						end
+
+						if enabled == true then
+							haystack.Size = clientBypass.noFall.haystackSize
+						elseif clientBypass.noFall.env.__rakeHaystackOriginalSize then
+							haystack.Size = clientBypass.noFall.env.__rakeHaystackOriginalSize
+						end
+					end)
+					return
+				end
+
+				task.wait(0.25)
+			end
+		end)
+	end
+
+	PlayerTab:CreateToggle({
+		Name = "无坠落伤害",
+		CurrentValue = st.noFall,
+		Flag = "NoFallDamage",
+		Callback = function(state)
+			_G.NoFallDMG = state == true
+			st.noFall = _G.NoFallDMG
+			cfgSet("noFall", st.noFall)
+			clientBypass.noFall.applyHaystack(_G.NoFallDMG)
+		end,
+	})
+
+	PlayerTab:CreateToggle({
+		Name = "安全位置恢复",
+		CurrentValue = st.safeRecover,
+		Flag = "SafePositionRecovery",
+		Callback = function(state)
+			st.safeRecover = state == true
+			_G.RakeSafeRecover = st.safeRecover
+			cfgSet("safeRecover", st.safeRecover)
+			clientBypass.applySafeRecover()
+		end,
+	})
+
+	PlayerTab:CreateToggle({
+		Name = "无跳跃冷却",
+		CurrentValue = st.noJumpCooldown,
+		Flag = "NoJumpCooldown",
+		Callback = function(state)
+			st.noJumpCooldown = state == true
+			_G.RakeNoJumpCooldown = st.noJumpCooldown
+			cfgSet("noJumpCooldown", st.noJumpCooldown)
+			clientBypass.applyCH(true)
+		end,
+	})
+
+	clientBypass.noFall.applyHaystack(st.noFall)
+
+
+	clientBypass.lastCam = nil
+	clientBypass.lastFov = nil
+	clientBypass.fovApply = false
+	clientBypass.zoomApply = false
+	clientBypass.fovConns = {}
+
+	clientBypass.wipeFovConns = function()
+		for i = #clientBypass.fovConns, 1, -1 do
+			local c = clientBypass.fovConns[i]
+			if c then
+				pcall(function()
+					c:Disconnect()
+				end)
+			end
+			clientBypass.fovConns[i] = nil
+		end
+	end
+
+	clientBypass.applyFov = function(force)
+		if not AllowRunService or st.fovOn ~= true or clientBypass.fovApply == true then
+			return
+		end
+		local cam = Ws.CurrentCamera or workspace.CurrentCamera
+		if not cam then
+			return
+		end
+		local num = math.clamp(tonumber(st.fov) or 70, 1, 120)
+		clientBypass.lastCam = cam
+		clientBypass.lastFov = num
+		if cam.FieldOfView ~= num then
+			clientBypass.fovApply = true
+			local ok = pcall(function()
+				if cam.FieldOfView ~= num then
+					cam.FieldOfView = num
+				end
+			end)
+			clientBypass.fovApply = false
+			if not ok then
+				return false
+			end
+		end
+		return true
+	end
+
+	clientBypass.bindFovCam = function(cam)
+		clientBypass.wipeFovConns()
+		if not cam then
+			return
+		end
+		clientBypass.lastCam = nil
+		local ok, c = pcall(function()
+			return cam:GetPropertyChangedSignal("FieldOfView"):Connect(function()
+				if AllowRunService == true and st.fovOn == true and clientBypass.fovApply ~= true then
+					clientBypass.applyFov(true)
+				end
+			end)
+		end)
+		if ok and c then
+			clientBypass.fovConns[#clientBypass.fovConns + 1] = c
+		end
+		clientBypass.applyFov(true)
+	end
+
+	clientBypass.zoomConns = {}
+
+	clientBypass.wipeZoomConns = function()
+		for i = #clientBypass.zoomConns, 1, -1 do
+			local c = clientBypass.zoomConns[i]
+			if c then
+				pcall(function()
+					c:Disconnect()
+				end)
+			end
+			clientBypass.zoomConns[i] = nil
+		end
+	end
+
+	clientBypass.normZoom = function()
+		local oldMin = st.minZoom
+		local oldMax = st.maxZoom
+		local mn = math.clamp(tonumber(st.minZoom) or 0.5, 0.5, 100000)
+		local mx = math.clamp(tonumber(st.maxZoom) or mn, 0.5, 100000)
+		if mx < mn then
+			mx = mn
+		end
+		st.minZoom = mn
+		st.maxZoom = mx
+		_G.RakeMinZoom = mn
+		_G.RakeMaxZoom = mx
+		if oldMin ~= mn then
+			cfgSet("minZoom", mn)
+		end
+		if oldMax ~= mx then
+			cfgSet("maxZoom", mx)
+		end
+		return mn, mx
+	end
+
+	clientBypass.applyZoom = function(force)
+		if AllowRunService ~= true or clientBypass.zoomApply == true then
+			return
+		end
+		local lp = Plrs.LocalPlayer
+		if not lp then
+			return
+		end
+		local mn, mx = clientBypass.normZoom()
+		if lp.CameraMinZoomDistance == mn and lp.CameraMaxZoomDistance == mx then
+			return true
+		end
+		clientBypass.zoomApply = true
+		local ok = pcall(function()
+			if lp.CameraMinZoomDistance ~= mn then
+				lp.CameraMinZoomDistance = mn
+			end
+			if lp.CameraMaxZoomDistance ~= mx then
+				lp.CameraMaxZoomDistance = mx
+			end
+		end)
+		clientBypass.zoomApply = false
+		return ok
+	end
+
+	clientBypass.bindZoomPlayer = function(lp)
+		clientBypass.wipeZoomConns()
+		if not lp then
+			return
+		end
+		local function reapply()
+			if AllowRunService == true and clientBypass.zoomApply ~= true then
+				clientBypass.applyZoom(true)
+			end
+		end
+		for _, prop in { "CameraMinZoomDistance", "CameraMaxZoomDistance" } do
+			local ok, c = pcall(function()
+				return lp:GetPropertyChangedSignal(prop):Connect(reapply)
+			end)
+			if ok and c then
+				clientBypass.zoomConns[#clientBypass.zoomConns + 1] = c
+			end
+		end
+		clientBypass.applyZoom(true)
+	end
+
+	clientBypass.applyRespawnPatches = function(ch)
+		if AllowRunService ~= true then
+			return
+		end
+		if ch and curChar and ch ~= curChar then
+			return
+		end
+		pcall(clientBypass.applySpeed, true)
+		pcall(clientBypass.applyZoom, true)
+		pcall(clientBypass.applyFov, true)
+		pcall(clientBypass.applyCharBypasses)
+		pcall(clientBypass.applySafeRecover)
+		pcall(clientBypass.applyLightToolBypasses)
+		pcall(clientBypass.applyStaminaSignals)
+		pcall(clientBypass.applyStaminaModuleBypass)
+		pcall(clientBypass.applyClientPopupBypasses)
+		pcall(clientBypass.applyKnownGamePrompts)
+		pcall(clientBypass.applyMonitorStaticBypass)
+		pcall(clientBypass.applyCH, true)
+	end
+
+	clientBypass.applySpeed = function(force)
+		if not AllowRunService or st.spdOn ~= true then
+			return
+		end
+		local hum = getHum()
+		if not hum or not hum.Parent then
+			return
+		end
+		local spd = math.clamp(tonumber(st.spd) or 16, 0, 30.5)
+		pcall(function()
+			if hum.WalkSpeed ~= spd then
+				hum.WalkSpeed = spd
+			end
+		end)
+	end
+
+	clientBypass.onChar = function(ch)
+		wipeCharConns()
+		curChar = ch
+		curHum = nil
+		curHrp = nil
+		clientBypass.lastSafe = nil
+		if not ch then
+			return
+		end
+		if st.infStamina == true or st.infNight == true then
+			queueInfTabs(14)
+		end
+		task.spawn(function()
+			local hum = ffca(ch, "Humanoid") or ch:WaitForChild("Humanoid", 10)
+			if hum then
+				curHum = hum
+				if st.fullbright == true then
+					clientBypass.applyFullbright(true)
+				end
+				clientBypass.applyRespawnPatches(ch)
+				for _, d in { 0.25, 1, 2.5, 5 } do
+					task.delay(d, function()
+						clientBypass.applyRespawnPatches(ch)
+					end)
+				end
+				if st.infStamina == true or st.infNight == true then
+					applyInfTabs(true)
+				end
+				bindChar(hum:GetPropertyChangedSignal("WalkSpeed"), function()
+					clientBypass.applySpeed(true)
+				end)
+				bindChar(hum:GetPropertyChangedSignal("Health"), function()
+					if st.fullbright == true then
+						clientBypass.applyFullbright(true)
+					end
+				end)
+				bindChar(ch.AncestryChanged, function()
+					if ch.Parent and st.fullbright == true then
+						clientBypass.applyFullbright(true)
+					end
+				end)
+			end
+		end)
+	end
+
+	clientBypass.lp = Plrs.LocalPlayer
+	if clientBypass.lp then
+		if clientBypass.lp.Character then
+			task.defer(clientBypass.onChar, clientBypass.lp.Character)
+		end
+		bind(clientBypass.lp.CharacterAdded, clientBypass.onChar)
+		bind(clientBypass.lp.CharacterRemoving, function()
+			if st.fullbright == true then
+				clientBypass.restoreFullbright()
+			end
+		end)
+	end
+
+	PlayerTab:CreateSlider({
+		Name = "视野角度",
+		Range = {1, 120},
+		Increment = 1,
+		CurrentValue = st.fov,
+		Flag = "FOV",
+		Callback = function(state)
+			st.fov = math.clamp(tonumber(state) or st.fov, 1, 120)
+			_G.FieldOfView = st.fov
+			cfgSet("fov", st.fov)
+			clientBypass.applyFov(true)
+		end,
+	})
+
+	PlayerTab:CreateToggle({
+		Name = "切换视野",
+		CurrentValue = st.fovOn,
+		Flag = "tglFOV",
+		Callback = function(state)
+			st.fovOn = state == true
+			_G.enableFOV = st.fovOn
+			cfgSet("fovOn", st.fovOn)
+			clientBypass.lastCam = nil
+			clientBypass.bindFovCam(Ws.CurrentCamera or workspace.CurrentCamera)
+			clientBypass.applyFov(true)
+		end,
+	})
+
+	PlayerTab:CreateSlider({
+		Name = "移动速度",
+		Range = {0, 30.5},
+		Increment = 0.5,
+		CurrentValue = st.spd,
+		Flag = "walkspeed",
+		Callback = function(state)
+			st.spd = math.clamp(tonumber(state) or st.spd, 0, 30.5)
+			_G.WalkSpeedd = st.spd
+			cfgSet("spd", st.spd)
+			clientBypass.applySpeed(true)
+		end,
+	})
+
+	PlayerTab:CreateToggle({
+		Name = "切换速度",
+		CurrentValue = st.spdOn,
+		Flag = "tglSpeed",
+		Callback = function(state)
+			st.spdOn = state == true
+			_G.enableSpeed = st.spdOn
+			cfgSet("spdOn", st.spdOn)
+			clientBypass.applySpeed(true)
+		end,
+	})
+
+
+	ExploitsTab:CreateToggle({
+		Name = "秒开补给箱",
+		CurrentValue = st.instaDrop,
+		Flag = "InstaOpenSupplyDrop",
+		Callback = function(state)
+			_G.InstaOpenSupplyDrop = state == true
+			st.instaDrop = _G.InstaOpenSupplyDrop
+			cfgSet("instaDrop", st.instaDrop)
+		end,
+	})
+
+	ExploitsTab:CreateToggle({
+		Name = "自动收集补给箱",
+		CurrentValue = st.autoSupplyCollect,
+		Flag = "AutoCollectSupplyDrop",
+		Callback = function(state)
+			st.autoSupplyCollect = state == true
+			_G.RakeAutoSupplyCollect = st.autoSupplyCollect
+			cfgSet("autoSupplyCollect", st.autoSupplyCollect)
+			if st.autoSupplyCollect then
+				clientBypass.autoSupplyCollect()
+			end
+		end,
+	})
+
+	ExploitsTab:CreateToggle({
+		Name = "秒拆 Rake 陷阱",
+		CurrentValue = st.instaTrap,
+		Flag = "InstaCloseRakeTrap",
+		Callback = function(state)
+			_G.InstaCloseRakeTrap = state == true
+			st.instaTrap = _G.InstaCloseRakeTrap
+			cfgSet("instaTrap", st.instaTrap)
+			if st.instaTrap then
+				eachTrap(fastTrap)
+			end
+		end,
+	})
+
+	ExploitsTab:CreateToggle({
+		Name = "已知物体提示绕过",
+		CurrentValue = st.knownPromptBypass,
+		Flag = "KnownObjectPromptBypass",
+		Callback = function(state)
+			st.knownPromptBypass = state == true
+			_G.RakeKnownPromptBypass = st.knownPromptBypass
+			cfgSet("knownPromptBypass", st.knownPromptBypass)
+			if st.knownPromptBypass then
+				local n = clientBypass.applyKnownGamePrompts()
+				UI:Notify({
+					Title = "已知提示",
+					Content = "已解锁已知提示：" .. tostring(n),
+					Duration = 2,
+					Image = 4483362458,
+				})
+			end
+		end,
+	})
+
+	ExploitsTab:CreateToggle({
+		Name = "提示绕过",
+		CurrentValue = st.promptBypass,
+		Flag = "PromptBypass",
+		Callback = function(state)
+			st.promptBypass = state == true
+			_G.RakePromptBypass = st.promptBypass
+			cfgSet("promptBypass", st.promptBypass)
+			if st.promptBypass then
+				local n = clientBypass.applyPromptBypass()
+				UI:Notify({
+					Title = "提示绕过",
+					Content = "已解锁提示：" .. tostring(n),
+					Duration = 2,
+					Image = 4483362458,
+				})
+			end
+		end,
+	})
+
+	ExploitsTab:CreateSlider({
+		Name = "提示距离",
+		Range = {5, 100},
+		Increment = 1,
+		CurrentValue = st.promptDistance,
+		Flag = "PromptBypassDistance",
+		Callback = function(v)
+			st.promptDistance = math.clamp(tonumber(v) or 25, 5, 100)
+			cfgSet("promptDistance", st.promptDistance)
+			if st.promptBypass then
+				clientBypass.applyKnownPromptBypass()
+			end
+		end,
+	})
+
+
+	ExploitsTab:CreateButton({
+		Name = "解锁一次提示",
+		Callback = function()
+			local old = st.promptBypass
+			st.promptBypass = true
+			local n = clientBypass.applyPromptBypass()
+			st.promptBypass = old
+			UI:Notify({
+				Title = "提示",
+				Content = "已解锁提示：" .. tostring(n),
+				Duration = 2,
+				Image = 4483362458,
+			})
+		end,
+	})
+
+	ExploitsTab:CreateButton({
+		Name = "StartRemote 开始游戏",
+		Callback = function()
+			local ok, res = clientBypass.invokeStartRemote("Play")
+			if ok then
+				setScriptGlobal("IsLoading", nil)
+				setScriptGlobal("SLoaded", true)
+				clientBypass.restoreCoreGui()
+			end
+			UI:Notify({
+				Title = "StartRemote",
+				Content = ok and ("开始游戏返回：" .. tostring(res)) or "StartRemote 不可用。",
+				Duration = 3,
+				Image = 4483362458,
+			})
+		end,
+	})
+
+	ExploitsTab:CreateButton({
+		Name = "StartRemote 加载数据",
+		Callback = function()
+			local ok, res = clientBypass.invokeStartRemote("LoadData")
+			UI:Notify({
+				Title = "StartRemote",
+				Content = ok and ("加载数据返回：" .. tostring(res)) or "StartRemote 不可用。",
+				Duration = 3,
+				Image = 4483362458,
+			})
+		end,
+	})
+
+	ExploitsTab:CreateButton({
+		Name = "StartRemote 加入旧版",
+		Callback = function()
+			local ok, res = clientBypass.invokeStartRemote("JoinOld")
+			UI:Notify({
+				Title = "StartRemote",
+				Content = ok and ("加入旧版返回：" .. tostring(res)) or "StartRemote 不可用。",
+				Duration = 3,
+				Image = 4483362458,
+			})
+		end,
+	})
+
+	clientBypass.promptT = 1
+	clientBypass.promptBypassT = 1
+	clientBypass.clientBypassT = 1
+	clientBypass.knownPromptT = 1
+	clientBypass.soundT = 1
+	clientBypass.lightT = 5
+	clientBypass.deathMsgT = 2
+	clientBypass.fastBypassT = 0
+	clientBypass.toolT = 1
+
+	bind(Run.Heartbeat, function(dt)
+		if AllowRunService ~= true then
+			return
+		end
+		clientBypass.toolT += dt
+		if clientBypass.toolT < 1 then
+			return
+		end
+		clientBypass.toolT = 0
+		pcall(clientBypass.autoFirstAid)
+		pcall(clientBypass.autoSupplyCollect)
+		pcall(clientBypass.autoCollectScraps)
+		pcall(clientBypass.autoRestorePower)
+		pcall(clientBypass.applyMonitorStaticBypass)
+	end)
+
+	bind(Run.Heartbeat, function(dt)
+		if AllowRunService ~= true then
+			return
+		end
+		clientBypass.promptT += dt
+		if clientBypass.promptT < 0.35 then
+			return
+		end
+		clientBypass.promptT = 0
+		pcall(function()
+			fastDoorLever()
+			if _G.InstaOpenSupplyDrop == true then
+				eachDrop(fastDrop)
+			end
+			if _G.InstaCloseRakeTrap == true then
+				eachTrap(fastTrap)
+			end
+		end)
+	end)
+
+	bind(Run.Heartbeat, function(dt)
+		if AllowRunService ~= true then
+			return
+		end
+		clientBypass.promptBypassT += dt
+		clientBypass.clientBypassT += dt
+		clientBypass.soundT += dt
+		clientBypass.knownPromptT += dt
+		clientBypass.deathMsgT += dt
+		clientBypass.chT += dt
+		clientBypass.stamScanT += dt
+		if (st.infStamina == true or st.infNight == true) and clientBypass.stamScanT >= 12 then
+			clientBypass.stamScanT = 0
+			pcall(clientBypass.applyStaminaModuleBypass)
+		end
+		if st.promptBypass == true and clientBypass.promptInitScan ~= true then
+			clientBypass.promptInitScan = true
+			clientBypass.promptBypassT = 0
+			pcall(clientBypass.applyPromptBypass)
+		elseif st.promptBypass ~= true then
+			clientBypass.promptInitScan = false
+		elseif clientBypass.promptBypassT >= 5 then
+			clientBypass.promptBypassT = 0
+			pcall(clientBypass.applyKnownPromptBypass)
+		end
+		if clientBypass.knownPromptT >= 1.25 then
+			clientBypass.knownPromptT = 0
+			pcall(clientBypass.applyKnownGamePrompts)
+			pcall(clientBypass.applyClientPopupBypasses)
+		end
+		if clientBypass.clientBypassT >= 0.75 then
+			clientBypass.clientBypassT = 0
+			pcall(clientBypass.applyMotionBlurBypass)
+			pcall(clientBypass.applyMenuFxBypass)
+			pcall(clientBypass.applyDeathFxBypass)
+			pcall(clientBypass.applyIntroBypass)
+			pcall(clientBypass.applyGameSettingOverrides)
+			pcall(clientBypass.applyPromptUiBypass)
+			pcall(clientBypass.applyLookFreeze)
+			pcall(clientBypass.cleanupPromptModals)
+			if st.forcePcDevice == true or type(clientBypass.deviceGlobalOrig) == "table" or next(clientBypass.chDeviceOrig) ~= nil then
+				pcall(clientBypass.applyDeviceSpoof)
+			end
+			if st.noDowned == true or st.noMoveLock == true or st.noTrapLock == true then
+				pcall(clientBypass.applyCharBypasses)
+			end
+			if st.safeRecover == true then
+				pcall(clientBypass.applySafeRecover)
+			end
+			pcall(clientBypass.applyClientPopupBypasses)
+			pcall(clientBypass.removeIntroClones)
+			pcall(clientBypass.forceCoreParts)
+			if st.infStamina == true or clientBypass.gstmnaOwned == true or next(clientBypass.stamTk) ~= nil then
+				pcall(clientBypass.applyStaminaSignals)
+			end
+			if clientBypass.chBootScan ~= true then
+				clientBypass.chBootScan = true
+				pcall(clientBypass.applyCH, true)
+			else
+				pcall(clientBypass.applyCH, false)
+			end
+		end
+		if clientBypass.deathMsgT >= 2 then
+			clientBypass.deathMsgT = 0
+			pcall(clientBypass.applyDeathMessageBypass)
+		end
+		if clientBypass.soundT >= 2.5 then
+			clientBypass.soundT = 0
+			pcall(clientBypass.applySoundBypasses)
+		end
+	end)
+
+	bind(Run.Heartbeat, function()
+		if AllowRunService ~= true then
+			return
+		end
+		if _G.NoFog == true then
+			setFogOff()
+		end
+		if st.safeRecover == true then
+			pcall(clientBypass.applySafeRecover)
+		end
+		if st.noDowned == true or st.noMoveLock == true or st.noTrapLock == true then
+			pcall(clientBypass.applyCharBypasses)
+		end
+		pcall(clientBypass.applyCH, false)
+	end)
+
+	clientBypass.bindFovCam(Ws.CurrentCamera or workspace.CurrentCamera)
+	clientBypass.bindZoomPlayer(Plrs.LocalPlayer)
+	if st.fullbright == true then
+		pcall(clientBypass.applyFullbright, true)
+	end
+	pcall(clientBypass.fetchRootModule)
+	if st.infStamina == true or st.infNight == true then
+		pcall(clientBypass.applyStaminaModuleBypass)
+	end
+	if st.infStamina == true then
+		pcall(clientBypass.applyStaminaSignals)
+	end
+
+	pcall(function()
+		bind(Ws:GetPropertyChangedSignal("CurrentCamera"), function()
+			clientBypass.bindFovCam(Ws.CurrentCamera or workspace.CurrentCamera)
+		end)
+	end)
+	
+	clientBypass.spdT = 0
+
+	bind(Run.Heartbeat, function(dt)
+		if AllowRunService ~= true then
+			return
+		end
+		clientBypass.spdT += dt
+		if clientBypass.spdT >= 0.5 then
+			clientBypass.spdT = 0
+			if st.spdOn == true then
+				clientBypass.applySpeed(false)
+			end
+		end
+	end)
+
+	bind(Run.Heartbeat, function(dt)
+		if AllowRunService ~= true or (st.infStamina ~= true and st.infNight ~= true) then
+			return
+		end
+
+		infSys.fast += dt
+		infSys.scan += dt
+		if infSys.fast < 0.75 then
+			return
+		end
+
+		infSys.fast = 0
+		applyInfTabs(false)
+		pcall(clientBypass.applyStaminaSignals)
+	end)
+
+	function DestroyUI()
+		AllowRunService = false
+		saveNow()
+		wipeCharConns()
+		clientBypass.wipeFovConns()
+		clientBypass.wipeZoomConns()
+		clientBypass.restoreFullbright()
+		clientBypass.restoreLightToolBypasses()
+		clientBypass.restoreMovementPatches()
+		clientBypass.restoreStaminaModules()
+		clientBypass.restoreMainClientModules()
+		clientBypass.restoreStaminaSignals()
+		clientBypass.restoreDeviceSpoof()
+		clientBypass.restoreHiddenUi()
+		wipeFog()
+		if cleanupEsp then
+			cleanupEsp()
+		end
+		wipeConns()
+		safeDestroy(FreeCamPart)
+		safeDestroy(HidePartHightLight)
+		safeDestroy(HidePart)
+		genv.RakeGui = false
+		pcall(function()
+			UI:Destroy()
+		end)
+	end
+
+	clientBypass.RakeTargetCounter = {
+		Set = function(_, txt)
+			setInfoTarget(txt)
+		end,
+	}
+	clientBypass.TimeUntilDayCounter = {
+		Set = function(_, txt)
+			setInfoTime(txt)
+		end,
+	}
+	clientBypass.PowerCounter = {
+		Set = function(_, txt)
+			setInfoPower(txt)
+		end,
+	}
+
+	-- update time until day label
+
+	clientBypass.infoT = 1
+
+	bind(Run.Heartbeat, function(dt)
+		if AllowRunService ~= true then
+			return
+		end
+		clientBypass.infoT += dt
+		if clientBypass.infoT < 1 then
+			return
+		end
+		clientBypass.infoT = 0
+		pcall(function()
+			local sec = fmtTime(valOf(ffc(Rep, "Timer"), 0))
+			if valOf(ffc(Rep, "Night"), false) == true then
+				clientBypass.TimeUntilDayCounter:Set("白天剩余时间："..sec)
+			else
+				clientBypass.TimeUntilDayCounter:Set("夜晚剩余时间："..sec)
+			end
+			local powerValues = ffc(Rep, "PowerValues")
+			local powerLevel = valOf(powerValues and ffc(powerValues, "PowerLevel"), 1000)
+
+			clientBypass.PowerCounter:Set("电力："..fmtPower(powerLevel).."%")
+		end)
+	end)
+
+	-- update rakes targetlabel
+
+
+	clientBypass.tarT = 0.25
+
+	bind(Run.Heartbeat, function(dt)
+		if AllowRunService ~= true then
+			return
+		end
+		clientBypass.tarT += dt
+		if clientBypass.tarT < 0.25 then
+			return
+		end
+		clientBypass.tarT = 0
+		pcall(function()
+			local rk = ffcr(Ws, "Rake")
+			local tv = ffcr(rk, "TargetVal")
+			local val = tv and tv.Value
+			if val and val.Parent then
+				clientBypass.RakeTargetCounter:Set("Rake 的目标：" .. tostring(val.Parent))
+			else
+				clientBypass.RakeTargetCounter:Set("Rake 的目标：无")
+			end
+		end)
+	end)
+
+
+	-- alert if blood hour
+
+	clientBypass.bhT = 1
+
+	bind(Run.Heartbeat, function(dt)
+		if AllowRunService ~= true then
+			return
+		end
+		clientBypass.bhT += dt
+		if clientBypass.bhT < 1 then
+			return
+		end
+		clientBypass.bhT = 0
+		local bh = ffc(Rep, "InitiateBloodHour")
+		if bh and bh.Value == true then
+			UI:Notify({
+				Title = "警报",
+				Content = "血月时刻即将来临",
+				Duration = 5,
+				Image = 4483362458,
+			})
+			bh.Value = false
+		end
+	end)
+
+	if canCfg then
+		pcall(function()
+			UI:LoadConfiguration()
+		end)
+	end
+	end
+
+	clientBypass.buildUi()
+end
